@@ -1,9 +1,11 @@
 import unittest
 import numpy as np
+import pandas as pd
 from network_structural_analysis.network_builder import dependency_shares, make_representations
 from network_structural_analysis.thresholding import diagnose_thresholds
-from network_structural_analysis.synthetic import generate_skeleton
+from network_structural_analysis.synthetic import generate_skeleton, _orient
 from network_structural_analysis.metrics import structural_analysis
+from network_structural_analysis.data_loader import _find_contiguous_numeric_block
 
 class TestNetworkPipeline(unittest.TestCase):
     def setUp(self):
@@ -35,9 +37,29 @@ class TestNetworkPipeline(unittest.TestCase):
         self.assertEqual(sm["nodes"],3); self.assertEqual(len(node),3)
         self.assertGreaterEqual(sm["density"],0)
 
+    def test_loader_extracts_square_block_before_final_demand(self):
+        labels=[f"C{i}_S{i}" for i in range(5)]
+        rows=[["node"]+labels+["FD_A","FD_B"]]
+        for i,label in enumerate(labels):
+            rows.append([label]+[str(i*5+j+1) for j in range(5)]+["10","20"])
+        raw=pd.DataFrame(rows,dtype=str)
+        Z,found,bounds,shape=_find_contiguous_numeric_block(raw,5)
+        self.assertEqual(found,labels)
+        self.assertEqual(Z.shape,(5,5))
+        self.assertEqual(Z[4,4],25.0)
+        self.assertEqual(bounds,(1,6,1,6))
+
     def test_synthetic_graphs_at_target_n(self):
         for family in ["ER","BA","WS"]:
             g,p=generate_skeleton(family,4050,8.0,1.0,0.1,42)
             self.assertEqual(g.number_of_nodes(),4050)
 
-if __name__=="__main__": unittest.main()
+    def test_directed_reciprocity_calibration(self):
+        import networkx as nx
+        G=nx.gnp_random_graph(500,0.04,seed=12)
+        D=_orient(G,0.4,np.random.default_rng(1))
+        observed=nx.reciprocity(D)
+        self.assertLess(abs(observed-0.4),0.08)
+
+if __name__=="__main__":
+    unittest.main()

@@ -1,8 +1,8 @@
 """Robust loading and validation of OECD ICIO CSV exports.
 
 Z[i,j] is the intermediate flow from supplier i to buyer j. ICIO exports may
-contain multi-row headers; the loader detects a numeric square block and requires
-the expected 4,050 labelled nodes instead of silently guessing its orientation.
+append final-demand columns and accounting rows; this parser extracts the
+leading N x N intermediate transaction block only after label and shape checks.
 """
 from __future__ import annotations
 import hashlib
@@ -35,9 +35,18 @@ def _is_numeric_token(x) -> bool:
         return False
 
 def _find_contiguous_numeric_block(raw: pd.DataFrame, expected_nodes: int | None):
+    """Extract the leading N×N intermediate-input block from an ICIO CSV.
+
+    ICIO exports may append final-demand columns to the right of the square
+    intermediate block and non-intermediate rows below it. We locate contiguous
+    rows with at least N numeric cells beginning at a common first numeric
+    column, then take the first N columns as Z. Header/row-label agreement helps
+    disambiguate the selected block.
+    """
     nrows, ncols = raw.shape
+    N = expected_nodes
+    min_run = max(2, min(N or 100, max(20, (N or 100) // 3)))
     row_runs = []
-    min_run = max(20, (expected_nodes or 100) // 3)
     for i in range(nrows):
         flags = np.fromiter((_is_numeric_token(v) for v in raw.iloc[i].tolist()), bool, count=ncols)
         idx = np.flatnonzero(flags)
@@ -45,41 +54,60 @@ def _find_contiguous_numeric_block(raw: pd.DataFrame, expected_nodes: int | None
             continue
         starts = np.r_[0, np.flatnonzero(np.diff(idx) > 1) + 1]
         ends = np.r_[starts[1:], len(idx)]
-        best = max(zip(starts, ends), key=lambda z: z[1]-z[0])
-        run = idx[best[0]:best[1]]
-        if len(run) >= min_run:
+        runs = [idx[a:b] for a,b in zip(starts,ends) if b-a >= min_run]
+        if runs:
+            # The first numeric run corresponds to intermediate transactions;
+            # further blocks may be final-demand or accounting entries.
+            run = min(runs, key=lambda x: int(x[0]))
             row_runs.append((i, int(run[0]), int(run[-1])+1, len(run)))
-    by_interval = {}
-    for row, c0, c1, count in row_runs:
-        by_interval.setdefault((c0, c1), []).append(row)
-    candidates = []
-    for (c0, c1), rows in by_interval.items():
-        rows = sorted(rows)
-        groups=[]; cur=[]
+    if not row_runs:
+        raise ICIOFormatError("Could not identify numeric transaction rows. Check the CSV edition/layout.")
+
+    by_start = {}
+    for row,c0,c1,count in row_runs:
+        by_start.setdefault(c0,[]).append(row)
+    candidates=[]
+    for c0,rows in by_start.items():
+        rows=sorted(rows); groups=[]; current=[]
         for r in rows:
-            if cur and r != cur[-1]+1:
-                groups.append(cur); cur=[]
-            cur.append(r)
-        if cur:
-            groups.append(cur)
-        for g in groups:
-            if len(g) == c1-c0 and (expected_nodes is None or len(g) == expected_nodes):
-                candidates.append((g[0], g[-1]+1, c0, c1))
-    if len(candidates) != 1:
+            if current and r != current[-1]+1:
+                groups.append(current); current=[]
+            current.append(r)
+        if current: groups.append(current)
+        for group in groups:
+            if N is None or len(group) < N or c0 + N > ncols:
+                continue
+            for offset in range(len(group)-N+1):
+                r0=group[offset]
+                r1=r0+N
+                candidates.append((r0,r1,c0,c0+N))
+
+    scored=[]
+    for r0,r1,c0,c1 in candidates:
+        row_labels=[_clean_label(x) for x in raw.iloc[r0:r1,c0-1].tolist()] if c0>0 else []
+        if len(row_labels)!=N or any(not x for x in row_labels) or len(set(row_labels))!=N:
+            continue
+        header_labels=[_clean_label(x) for x in raw.iloc[r0-1,c0:c1].tolist()] if r0>0 else []
+        exact_header_match=(len(header_labels)==N and header_labels==row_labels)
+        header_nonempty=(len(header_labels)==N and all(header_labels))
+        score=2 if exact_header_match else (0 if not header_nonempty else -2)
+        scored.append((score,r0,r1,c0,c1,row_labels))
+    if not scored:
         raise ICIOFormatError(
-            f"Expected one {expected_nodes or 'square'} labelled numeric block; found {len(candidates)} exact candidates. "
-            "This CSV layout requires an explicit parser adjustment; no block was guessed."
+            f"Could not identify a {N}×{N} numeric intermediate block with {N} unique row labels. "
+            "The CSV layout may require an explicit edition-specific parser."
         )
-    r0,r1,c0,c1=candidates[0]
-    if c0 == 0:
+    best_score=max(x[0] for x in scored)
+    best=[x for x in scored if x[0]==best_score]
+    if len(best)!=1:
+        raise ICIOFormatError(f"Found {len(best)} equally plausible ICIO numeric blocks; parsing is ambiguous.")
+    _,r0,r1,c0,c1,row_labels=best[0]
+    if c0==0:
         raise ICIOFormatError("No column available for country-industry row labels.")
-    row_labels = [_clean_label(x) for x in raw.iloc[r0:r1, c0-1].tolist()]
-    if len(row_labels) != len(set(row_labels)) or any(not x for x in row_labels):
-        raise ICIOFormatError("Row labels are empty or duplicated in the detected block.")
-    mat = raw.iloc[r0:r1, c0:c1].apply(lambda col: pd.to_numeric(col.str.replace(",", "", regex=False), errors="coerce"))
+    mat=raw.iloc[r0:r1,c0:c1].apply(lambda col: pd.to_numeric(col.str.replace(",","",regex=False),errors="coerce"))
     if mat.isna().any().any():
         raise ICIOFormatError(f"Detected transaction block contains {int(mat.isna().sum().sum()):,} non-numeric cells.")
-    return mat.to_numpy(dtype=np.float64), row_labels, (r0,r1,c0,c1), raw.shape
+    return mat.to_numpy(dtype=np.float64),row_labels,(r0,r1,c0,c1),raw.shape
 
 def load_icio(path: str | Path, expected_nodes: int | None = 4050, allow_expected_mismatch: bool = False):
     path=Path(path)
