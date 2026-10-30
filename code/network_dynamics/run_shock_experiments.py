@@ -278,7 +278,22 @@ def run(args=None):
                 raise ValueError(f"{record['network_id']}: node-metric order differs from metadata/node_index.csv.")
             node_metrics = calculate_targeting_metrics(B, labels, structural_metrics)
             extra = tuple(c for c in ("betweenness", "k_core", "clustering") if c in node_metrics)
-            centralities = DEFAULT_CENTRALITIES + extra
+            if rep == "UU":
+                # Directional in/out scores are duplicates on a symmetric UU
+                # graph; retain one projection-degree measure.
+                centralities = (
+                    "undirected_projection_degree",
+                    "pagerank_supplier_to_buyer",
+                    "eigenvector_supplier_to_buyer",
+                ) + extra
+            else:
+                centralities = DEFAULT_CENTRALITIES + extra
+            # Match random cohorts across all real year/representation pairs,
+            # and across the three representations of each synthetic skeleton.
+            target_seed = (
+                int(ns.seed) + 101 if record["network_type"] == "real"
+                else int(ns.seed) + int(record["graph_seed"]) + 9001
+            )
             lambda_max = spectral_radius(B)
             beta_c = float(ns.rho/lambda_max) if lambda_max > 0 else np.inf
             matrix_sha, metrics_sha = _sha256(matrix_path), _sha256(metrics_path)
@@ -300,7 +315,7 @@ def run(args=None):
                 targeted = run_targeted_cohort_experiment(
                     B, beta, ns.rho, node_metrics, fraction=ns.target_fraction,
                     repeats=ns.random_cohorts,
-                    seed=ns.seed + sum(ord(ch) for ch in network_key),
+                    seed=target_seed,
                     max_steps=ns.max_steps, tolerance=ns.tolerance,
                     centralities=centralities,
                     initial_infection=ns.initial_infection,
@@ -328,7 +343,8 @@ def run(args=None):
                     "census_node_count": n, "census_batch_size": ns.census_batch_size,
                     "target_fraction": ns.target_fraction,
                     "target_seed_count": int(np.ceil(ns.target_fraction*n)),
-                    "random_cohorts": ns.random_cohorts, "centralities": list(centralities),
+                    "random_cohorts": ns.random_cohorts, "random_cohort_seed": target_seed,
+                    "centralities": list(centralities),
                     "max_steps": ns.max_steps, "tolerance": ns.tolerance,
                     "matrix_path": str(matrix_path), "matrix_sha256": matrix_sha,
                     "node_metrics_path": str(metrics_path), "node_metrics_sha256": metrics_sha,
