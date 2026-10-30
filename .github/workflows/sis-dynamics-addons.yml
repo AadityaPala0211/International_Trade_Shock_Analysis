@@ -1,0 +1,33 @@
+name: SIS dynamics add-on tests
+
+on:
+  push:
+    branches:
+      - sis-dynamics-enhancements
+    paths:
+      - "code/network_dynamics/**"
+      - "docs/SIS_NODE_ATTRIBUTION.md"
+      - ".github/workflows/sis-dynamics-addons.yml"
+  pull_request:
+    paths:
+      - "code/network_dynamics/**"
+      - "docs/SIS_NODE_ATTRIBUTION.md"
+      - ".github/workflows/sis-dynamics-addons.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install add-on test dependencies
+        run: python -m pip install --upgrade pip numpy pandas scipy
+      - name: Compile SIS add-on
+        run: python -m compileall -q code/network_dynamics
+      - name: Run unit tests
+        env:
+          PYTHONPATH: code
+        run: python -m unittest discover -s code/network_dynamics/tests -v
