@@ -29,7 +29,9 @@ which node(s) start affected, not the contagion equation.
    across centrality and beta-scenario comparisons within each network.
 3. **Centrality-impact association.** Spearman rank correlations quantify
    associations between each source metric and the three SIS impact measures.
-   These are descriptive diagnostics, not causal tests.
+   These are descriptive diagnostics, not causal tests. P-values are also
+   adjusted with Benjamini-Hochberg false-discovery-rate control within each
+   network/scenario centrality-by-impact test family.
 4. **Existing random multi-node experiment.** The 20 real and five-per-
    synthetic-skeleton random seed sets in the original dynamics pipeline stay
    unchanged. They estimate response to random initial multi-node disruptions
