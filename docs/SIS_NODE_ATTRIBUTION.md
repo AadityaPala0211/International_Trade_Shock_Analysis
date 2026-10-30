@@ -105,7 +105,7 @@ Optional controls: `--initial-infection` (default 1.0),
 ## Outputs
 
 - One directory per network and scenario, containing
-  `single_node_shock_census.csv.gz` (one row per source), optional
+  `single_node_shock_census.csv.gz` (one row per source, including fixed-horizon\n  cumulative prevalence, observed-until-stop area and plateau extension), optional
   `single_node_shock_trajectories.csv.gz`, `targeting_metrics.csv.gz`,
   `targeted_cohort_runs.csv.gz`, `targeted_cohort_summary.csv`,
   `centrality_impact_correlations.csv` and `experiment_metadata.json`.
