@@ -108,6 +108,9 @@ def _sampled_betweenness(B, k, seed):
                     dependency[v]+=sigma[v]*factor
             if w!=source: centrality[w]+=dependency[w]
     if n>2:
+        # Source sampling is scaled by n/k. For undirected graphs the raw
+        # accumulation includes both endpoint orders; this is equivalent to
+        # halving raw scores and then applying NetworkX's undirected factor 2.
         centrality *= (n/float(k))/((n-1)*(n-2))
     return centrality
 
