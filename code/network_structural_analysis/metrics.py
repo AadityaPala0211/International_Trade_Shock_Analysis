@@ -79,7 +79,7 @@ def _local_clustering_sparse(B):
     return np.divide(common,denominator,out=np.zeros_like(common),where=denominator>0)
 
 
-def _sampled_betweenness(B, k, seed):
+def _sampled_betweenness(B, k, seed, directed=True):
     """Unweighted Brandes betweenness approximation using k sampled sources."""
     B=sparse.csr_matrix(B,dtype=np.uint8); n=B.shape[0]
     if n<3 or B.nnz==0 or k<=0: return np.zeros(n,dtype=float)
@@ -108,6 +108,10 @@ def _sampled_betweenness(B, k, seed):
                     dependency[v]+=sigma[v]*factor
             if w!=source: centrality[w]+=dependency[w]
     if n>2:
+        # Brandes accumulates both endpoint orders for undirected graphs;
+        # divide by two before applying the directed/undirected shared scale.
+        if not directed:
+            centrality *= 0.5
         centrality *= (n/float(k))/((n-1)*(n-2))
     return centrality
 
@@ -174,7 +178,7 @@ def structural_analysis(A, labels, representation: str, seed: int=20261030,
         avg_path=float("nan"); path_coverage=0.0
 
     if include_node_metrics:
-        betweenness=_sampled_betweenness(A_bin if directed else B,min(betweenness_k,n),seed+2027)
+        betweenness=_sampled_betweenness(A_bin if directed else B,min(betweenness_k,n),seed+2027,directed=directed)
         node_df=pd.DataFrame({
             "node_id":np.arange(n),"node":labels,
             "in_degree":indeg,"out_degree":outdeg,

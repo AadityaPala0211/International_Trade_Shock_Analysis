@@ -180,6 +180,17 @@ class TestNetworkPipeline(unittest.TestCase):
         self.assertAlmostEqual(nodes.loc[1, "pagerank"], nx.pagerank(graph)[1], places=5)
         self.assertEqual(summary["strong_component_count"], 3)
 
+    def test_undirected_betweenness_normalization_matches_networkx(self):
+        A = sparse.csr_matrix(np.array([
+            [0, 1, 0], [1, 0, 1], [0, 1, 0]
+        ], dtype=np.uint8))
+        _, nodes = structural_analysis(A, ["a", "b", "c"], "UU",
+                                       seed=4, path_sample_sources=3, betweenness_k=3)
+        graph = nx.from_scipy_sparse_array(A)
+        expected = nx.betweenness_centrality(graph)
+        self.assertTrue(np.allclose(nodes["betweenness"].to_numpy(),
+                                    np.array([expected[0], expected[1], expected[2]])))
+
     def test_icio_companion_workbook_provenance_audit(self):
         from openpyxl import Workbook
         with tempfile.TemporaryDirectory() as tmp:
