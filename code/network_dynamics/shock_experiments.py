@@ -81,6 +81,10 @@ def simulate_model_a(B, initial_state, beta, rho, max_steps=300,
         prevalence.append(float(d.mean()))
         exposure_mass.append(float((B.T @ d).sum()))
         if prevalence[-1] <= extinction_threshold:
+            # Treat numerical extinction as an absorbing zero state.
+            d.fill(0.0)
+            prevalence[-1] = 0.0
+            exposure_mass[-1] = 0.0
             extinct = True
             break
         if delta <= tolerance:
@@ -88,17 +92,27 @@ def simulate_model_a(B, initial_state, beta, rho, max_steps=300,
             break
     p = np.asarray(prevalence)
     peak = int(np.argmax(p))
+    steps = int(len(p)-1)
+    observed_auc = float(p[1:].sum())
+    remaining_steps = max(0, int(max_steps)-steps)
+    # A common fixed horizon is essential: a trajectory converging early to a
+    # positive endemic state must accrue that plateau for the rest of the
+    # evaluation window. Extinction is absorbing at zero.
+    plateau_extension = float(p[-1])*remaining_steps if converged and not extinct else 0.0
     return {
         "prevalence": p,
         "exposure_mass": np.asarray(exposure_mass),
         "peak_prevalence": float(p[peak]),
         "peak_step": peak,
         "final_prevalence": float(p[-1]),
-        "cumulative_prevalence": float(p[1:].sum()),
-        "extinction_time": int(len(p)-1) if extinct else np.nan,
-        "steps": int(len(p)-1),
+        "cumulative_prevalence": observed_auc + plateau_extension,
+        "cumulative_prevalence_observed_until_stop": observed_auc,
+        "cumulative_plateau_extension": plateau_extension,
+        "extinction_time": steps if extinct else np.nan,
+        "steps": steps,
         "converged": bool(converged),
         "extinct": bool(extinct),
+        "evaluation_horizon": int(max_steps),
     }
 
 
@@ -245,30 +259,47 @@ def run_single_node_census(B, beta, rho, labels=None, node_metrics=None,
             exposure_mass = np.asarray(B.T @ D).sum(axis=0)
             for j in np.flatnonzero(active):
                 p = float(prevalence[j])
-                cumulative[j] += p
-                if p > peak[j]:
-                    peak[j] = p
-                    peak_step[j] = step
-                if store_trajectories:
-                    prevalence_history[j].append(p)
-                    exposure_history[j].append(float(exposure_mass[j]))
                 if p <= 1e-8:
+                    # Absorb numerical extinction at zero to avoid tiny residual
+                    # prevalence being carried into the remaining horizon.
+                    p = 0.0
+                    D[:, j] = 0.0
+                    prevalence[j] = 0.0
+                    exposure_mass[j] = 0.0
                     extinct[j] = True
                     steps[j] = step
                     active[j] = False
-                elif float(delta[j]) <= float(tolerance):
-                    converged[j] = True
-                    steps[j] = step
-                    active[j] = False
+                else:
+                    cumulative[j] += p
+                    if p > peak[j]:
+                        peak[j] = p
+                        peak_step[j] = step
+                    if float(delta[j]) <= float(tolerance):
+                        converged[j] = True
+                        steps[j] = step
+                        active[j] = False
+                if store_trajectories:
+                    prevalence_history[j].append(p)
+                    exposure_history[j].append(float(exposure_mass[j]))
 
         for j, source in enumerate(range(start, stop)):
             final = float(D[:, j].mean())
+            observed_auc = float(cumulative[j])
+            plateau_extension = (
+                final * max(0, int(max_steps)-int(steps[j]))
+                if converged[j] and not extinct[j] else 0.0
+            )
+            cumulative_horizon = observed_auc + plateau_extension
             row = {
                 "source_node_id": source, "source_node": str(metrics.loc[source, "node"]),
                 "initial_infection": float(initial_infection), "beta": beta, "rho": rho,
                 "beta_critical": beta_c, "lambda_max": lam,
                 "peak_prevalence": float(peak[j]), "peak_step": int(peak_step[j]),
-                "final_prevalence": final, "cumulative_prevalence": float(cumulative[j]),
+                "final_prevalence": final,
+                "cumulative_prevalence": cumulative_horizon,
+                "cumulative_prevalence_observed_until_stop": observed_auc,
+                "cumulative_plateau_extension": plateau_extension,
+                "evaluation_horizon": int(max_steps),
                 "extinction_time": int(steps[j]) if extinct[j] else np.nan,
                 "steps": int(steps[j]), "converged": bool(converged[j]),
                 "extinct": bool(extinct[j]),
@@ -278,6 +309,16 @@ def run_single_node_census(B, beta, rho, labels=None, node_metrics=None,
                     row[f"source_{col}"] = metrics.loc[source, col]
             rows.append(row)
             if store_trajectories:
+                # Pad early-stopped trajectories to the common horizon. A
+                # converged path holds its equilibrium; extinction stays zero.
+                if extinct[j]:
+                    pad_prevalence, pad_exposure = 0.0, 0.0
+                else:
+                    pad_prevalence = prevalence_history[j][-1]
+                    pad_exposure = exposure_history[j][-1]
+                while len(prevalence_history[j]) < int(max_steps)+1:
+                    prevalence_history[j].append(float(pad_prevalence))
+                    exposure_history[j].append(float(pad_exposure))
                 trajectory_rows.extend({
                     "source_node_id": source, "source_node": row["source_node"],
                     "step": t, "prevalence": value,
@@ -326,6 +367,7 @@ def run_targeted_cohort_experiment(B, beta, rho, node_metrics, fraction=0.01,
             "peak_step": outcome["peak_step"],
             "final_prevalence": outcome["final_prevalence"],
             "cumulative_prevalence": outcome["cumulative_prevalence"],
+            "cumulative_prevalence_observed_until_stop": outcome["cumulative_prevalence_observed_until_stop"],
             "extinction_time": outcome["extinction_time"],
             "steps": outcome["steps"], "converged": outcome["converged"],
             "extinct": outcome["extinct"],
@@ -343,7 +385,8 @@ def run_targeted_cohort_experiment(B, beta, rho, node_metrics, fraction=0.01,
 
 
 def summarize_targeted_cohorts(experiment):
-    outcomes = ("peak_prevalence", "final_prevalence", "cumulative_prevalence")
+    outcomes = ("peak_prevalence", "final_prevalence", "cumulative_prevalence",
+                "cumulative_prevalence_observed_until_stop")
     rows = []
     for (centrality, cohort), group in experiment.groupby(["centrality", "cohort"], sort=True):
         row = {"centrality": centrality, "cohort": cohort, "n_runs": len(group)}
