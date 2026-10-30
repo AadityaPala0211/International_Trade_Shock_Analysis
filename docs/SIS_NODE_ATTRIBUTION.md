@@ -1,102 +1,135 @@
 # SIS node-level shock attribution add-on
 
 This is a separate package from `network_structural_analysis`. It reads
-persisted sparse matrices and adds node-level experiments without rewriting
-structural matrices, manifests, node metrics, or existing structural source.
+persisted sparse matrices, exact node-index labels and precomputed structural
+metrics. It does not rewrite structural matrices, manifests, metrics or code.
 
-## One model, more informative initial conditions
+## Method: unchanged Model A, extended initial-condition design
 
-All experiments use the same deterministic mass-action SIS / NIMFA-style
-Model A:
+All experiments use the deterministic mass-action SIS / NIMFA-style Model A:
 
 ```
-d_j(t+1) = clip_[0,1]((1-rho)d_j(t) + (1-d_j(t))*beta*sum_i B_ij d_i(t))
+d_j(t+1) = clip_[0,1]((1-rho)d_j(t) + (1-d_j(t))*beta*sum_i B_ij*d_i(t))
 e(t) = B.T @ d(t)
 ```
 
-`B[i,j]` means supplier `i` influences buyer `j`. No stochastic
-infection/recovery events are drawn during the trajectory. The extensions
-change only which node(s) start affected.
+`B[i,j]` means supplier `i` influences buyer `j`. Infection/recovery
+events are not stochastic within a trajectory. The new experiments change
+which node(s) start affected, not the contagion equation.
 
 ## Added experiments
 
-1. **Exhaustive single-node shock census.** Every node is tested once as the
-   sole initially affected activity. At 4,050 nodes this means 4,050 runs per
-   matrix and beta. Results rank source nodes by peak, cumulative and terminal
-   prevalence.
-2. **Centrality-targeted cohorts.** The top and bottom 1% by seven structural
-   measures are seeded as groups, compared against 20 independently sampled
-   random groups of exactly the same size. Random groups are shared between
-   centrality comparisons to improve paired contrasts.
-3. **Existing random multi-node experiment.** The current 20 real seed sets
-   and five per synthetic skeleton stay unchanged. This is the average response
-   to randomly located multi-node shocks and remains complementary.
+1. **Exhaustive single-node shock census.** Every one of the N nodes is tested
+   exactly once as the sole initially affected activity. For N=4,050 this is
+   4,050 trajectories per network and beta scenario. Outputs rank initiating
+   nodes by peak, cumulative and final prevalence.
+2. **Centrality-targeted cohorts.** Top and bottom 1% (ceil(0.01*N)) are seeded
+   separately for each available centrality, alongside 20 independently
+   drawn random cohorts of identical size. The random cohort draws are reused
+   across centrality and beta-scenario comparisons within each network.
+3. **Centrality-impact association.** Spearman rank correlations quantify
+   associations between each source metric and the three SIS impact measures.
+   These are descriptive diagnostics, not causal tests.
+4. **Existing random multi-node experiment.** The 20 real and five-per-
+   synthetic-skeleton random seed sets in the original dynamics pipeline stay
+   unchanged. They estimate response to random initial multi-node disruptions
+   and complement, rather than replace, the new targeted experiments.
 
-Centralities distinguish supplier downstream reach (out-degree/out-strength)
-from buyer upstream dependence (in-degree/in-strength), and also include
-undirected projection degree, supplier-to-buyer PageRank and eigenvector
-centrality. Structural scores select the initial cohort only; they do not
-change the SIS transition equation.
+### Centralities
 
-## Scope and compute budget
+The extension calculates supplier out-degree/out-strength, buyer in-degree/
+in-strength, undirected projection degree, supplier-to-buyer PageRank and
+supplier-to-buyer eigenvector centrality. It also reuses the existing
+structural-analysis betweenness, k-core and clustering columns when present.
+The top/bottom cohorts are structural targeting hypotheses; the scores never
+enter the SIS state transition itself.
 
-Run exhaustive census by default on the six empirical matrices (2019/2022 ×
-UU/UD/WD), using common beta/rho choices within representation and selected
-eta sensitivity points. Synthetic node censuses are opt-in: 270 synthetic
-matrices at 10 realizations × 4,050 sources × 7 beta scenarios would require
-over 7.6 million trajectories. The functions support synthetic matrices,
-but the full grid should be budgeted explicitly. Trajectory-level output is
-optional; summary metrics are stored by default.
+## Runnable command
 
-## Tests and library usage
+Install the existing project's dependencies, then from repository root:
 
 ```bash
+# Linux/macOS
 export PYTHONPATH=code
-python -m unittest discover -s code/network_dynamics/tests -v
+python -m network_dynamics.run_shock_experiments \
+  --results-dir results_network_analysis \
+  --out results_network_analysis/dynamics_node_attribution \
+  --scope real --rho 0.2 \
+  --beta-uu YOUR_VALIDATED_BETA_UU \
+  --beta-ud YOUR_VALIDATED_BETA_UD \
+  --beta-wd YOUR_VALIDATED_BETA_WD
 ```
 
-Load the persisted sparse matrix and the exact node index generated by the
-structural pipeline; do not independently sort/recreate node labels.
+Replace the three beta placeholders with the absolute values selected from
+`dynamics/validation_all/dynamics_input_precheck.csv`; do not copy example
+values without checking their beta-critical ranges. The absolute-beta scenario
+holds one beta constant within each representation across networks. The six
+additional eta scenarios use each matrix's beta-critical value, eta times
+beta_c, with eta in {0.5, 0.9, 1.0, 1.1, 1.5, 2.0}.
 
-```python
-from scipy.sparse import load_npz
-from network_dynamics.shock_experiments import (
-    calculate_targeting_metrics, run_single_node_census,
-    run_targeted_cohort_experiment, summarize_targeted_cohorts,
-    write_experiment_outputs,
-)
+The default empirical scope is all six matrices (2019/2022 × UU/UD/WD) and all
+seven scenarios (absolute plus six eta values). This is 170,100 single-source
+trajectories (6 × 7 × 4,050). The one-source census is computed in bounded
+batches of 64 source nodes to reduce repeated sparse-matrix traversal and keep
+memory usage predictable. Targeted cohorts default to ten available
+centralities × (top + bottom + 20 random controls) for each network/scenario.
 
-B = load_npz("results_network_analysis/empirical/2019/UD/adjacency.npz")
-labels = [...]  # exact node order from the persisted node index
-metrics = calculate_targeting_metrics(B, labels)
-census, _ = run_single_node_census(B, beta=..., rho=..., node_metrics=metrics)
-targeted = run_targeted_cohort_experiment(B, beta=..., rho=..., node_metrics=metrics)
-write_experiment_outputs(
-    "results_network_analysis/dynamics_node_attribution/2019_UD",
-    census=census, targeted=targeted,
-    targeted_summary=summarize_targeted_cohorts(targeted),
-    metadata={"model": "Model A", "network": "2019_UD"},
-)
+Synthetic networks are deliberately opt-in because a full 270-matrix, seven-
+scenario node census would require 7,654,500 individual source trajectories
+at ten realizations/configuration. To include a pilot with one paired
+realization per configuration:
+
+```bash
+python -m network_dynamics.run_shock_experiments \
+  --results-dir results_network_analysis \
+  --out results_network_analysis/dynamics_node_attribution_synthetic_pilot \
+  --scope synthetic --synthetic-realizations 1 --rho 0.2 \
+  --beta-uu YOUR_VALIDATED_BETA_UU \
+  --beta-ud YOUR_VALIDATED_BETA_UD \
+  --beta-wd YOUR_VALIDATED_BETA_WD
 ```
 
-The caller must use beta calibrated from the same spectral preflight as the
-main SIS run. Keep beta/rho/horizon constant across nodes within a given matrix.
+Use `--synthetic-realizations 0` to include every realization. Use
+`--scenarios absolute eta_1` for a smaller sensitivity run, or
+`--random-cohorts 50` for more precise random-group comparison. Keep the
+output under a separate `dynamics_node_attribution` directory. The runner
+checks node-index and metric alignment and writes SHA-256 checksums of inputs.
 
-## Outputs and interpretation
+Optional controls: `--initial-infection` (default 1.0),
+`--target-fraction` (default 0.01), `--random-cohorts` (default 20),
+`--max-steps` (300), `--tolerance` (1e-8), `--census-batch-size` (64),
+`--store-trajectories` (off by default; creates much larger files).
 
-- `single_node_shock_census.csv.gz`: one row per initially affected node;
-  includes three impact ranks and structural source metrics.
-- Optional `single_node_shock_trajectories.csv.gz`: long-form source-by-time
-  prevalence/exposure series.
-- `targeted_cohort_runs.csv.gz`: each exact top/bottom/random seed group and
-  its outcome, retaining node IDs for reproducibility.
-- `targeted_cohort_summary.csv`: group means, spread, and differences versus
-  matched-size random controls.
-- `experiment_metadata.json`: model and caller-supplied run provenance.
+## Outputs
 
-A unit single-node seed is not a calibrated economic output loss or outage
-probability. A one-node shock may die out while a 1%-many-node seed grows.
-Report initial infection level, beta, rho and horizon. Source census variation
-is source identity enumeration, not stochastic transmission uncertainty.
-Targeted centrality differences are descriptive, not causal or calibrated
-economic-loss estimates.
+- One directory per network and scenario, containing
+  `single_node_shock_census.csv.gz` (one row per source), optional
+  `single_node_shock_trajectories.csv.gz`, `targeting_metrics.csv.gz`,
+  `targeted_cohort_runs.csv.gz`, `targeted_cohort_summary.csv`,
+  `centrality_impact_correlations.csv` and `experiment_metadata.json`.
+- `shock_experiment_manifest.csv`: scenario inventory, source count, target
+  cohort run count, beta/threshold values, input checksum and output directory.
+- `top_20_single_node_shocks.csv.gz`: convenience extract of the top 20
+  cumulative-impact sources for every network/scenario.
+- `shock_experiment_run_metadata.json`: global parameter and provenance audit.
+
+## Interpretation safeguards
+
+A single-node initial state of 1 means a unit shock to one node's model state,
+not a calibrated economic output loss, supplier outage probability or
+percentage production loss. For N=4,050 the starting prevalence is 1/N.
+One single-node shock can die out even when a 1%-many-node seed grows. Report
+initial infection, beta, rho, beta_c/eta and horizon with every result.
+
+A node census enumerates source identity and is not a stochastic Monte Carlo
+over SIS infection/recovery events. Random-cohort variation is uncertainty
+from the location of initial seeds, not stochastic transmission uncertainty.
+Centrality-impact correlations and targeted-group differences are descriptive
+network-model results, not causal effects. Synthetic experiments remain null-
+model comparisons, not replicas of actual production or trade flows.
+
+## Tests
+
+```bash
+PYTHONPATH=code python -m unittest discover -s code/network_dynamics/tests -v
+```
