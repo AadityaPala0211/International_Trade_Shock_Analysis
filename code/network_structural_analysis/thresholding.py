@@ -104,6 +104,7 @@ def diagnose_thresholds(year_matrices, candidates, out_dir=None,
         mean_edges=("directed_edges", "mean"),
     )
 
+    sensitivity = []
     if selected_threshold is None:
         sensitivity = []
         selection_note = ("No threshold selected. Review the diagnostics and figures, then rerun "
