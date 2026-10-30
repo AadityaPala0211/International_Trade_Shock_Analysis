@@ -25,7 +25,7 @@ from .visualization import (
     plot_degree_distribution, plot_strength_distribution,
     plot_metric_comparison, plot_synthetic_comparison,
 )
-from .dynamics import run_dynamics_analysis
+from .dynamics import run_dynamics_analysis, validate_network_records
 
 
 def _json_write(path, obj):
@@ -312,12 +312,10 @@ def _load_manifest_records(path, base_dir, expected_type):
     for record in records:
         record["base_dir"] = str(base_dir)
         record["network_type"] = expected_type
-        record["n_nodes"] = int(record.get("n_nodes", 0) or 0)
     return records
 
 
-def _dynamics_stage(out, scope, seed, rho, beta_by_rep, max_steps, tolerance,
-                    real_seed_sets, synthetic_seed_sets, infection_fraction):
+def _load_dynamics_scope_records(out, scope):
     records = []
     if scope in ("real", "all"):
         records.extend(_load_manifest_records(
@@ -328,12 +326,47 @@ def _dynamics_stage(out, scope, seed, rho, beta_by_rep, max_steps, tolerance,
             out / "synthetic", "synthetic"))
     if not records:
         raise ValueError("No matrices were found for the requested dynamics scope.")
+    return records
+
+
+def _dynamics_validation_stage(out, scope, rho, expected_nodes):
+    records = _load_dynamics_scope_records(out, scope)
+    destination = out / "dynamics" / f"validation_{scope}"
+    destination.mkdir(parents=True, exist_ok=True)
+    normalised, diagnostics, report = validate_network_records(
+        records, rho=rho, expected_scope=scope,
+        require_full_design=True, expected_nodes=expected_nodes,
+    )
+    diagnostics.to_csv(destination / "dynamics_input_precheck.csv", index=False)
+    (destination / "dynamics_input_validation.json").write_text(
+        json.dumps(report, indent=2, allow_nan=False)
+    )
+    print(json.dumps({
+        "status": "dynamics_inputs_validated",
+        "scope": scope,
+        "networks_validated": len(normalised),
+        "node_count": report["node_count"],
+        "synthetic_skeletons": report["synthetic_skeleton_count"],
+        "beta_critical_by_representation": report["beta_critical_by_representation"],
+        "next_step": (
+            "Review beta_critical_by_representation, choose absolute beta values, "
+            "then run --stage dynamics with the same scope and --rho."
+        ),
+        "out": str(destination),
+    }, indent=2))
+
+
+def _dynamics_stage(out, scope, seed, rho, beta_by_rep, max_steps, tolerance,
+                    real_seed_sets, synthetic_seed_sets, infection_fraction,
+                    expected_nodes):
+    records = _load_dynamics_scope_records(out, scope)
     destination = out / "dynamics" / scope
     network_results, seed_results = run_dynamics_analysis(
         records, destination, seed=seed, rho=rho,
         beta_by_rep=beta_by_rep, max_steps=max_steps, tolerance=tolerance,
         real_seed_sets=real_seed_sets, synthetic_seed_sets=synthetic_seed_sets,
-        infection_fraction=infection_fraction,
+        infection_fraction=infection_fraction, expected_scope=scope,
+        require_full_design=True, expected_nodes=expected_nodes,
     )
     print(json.dumps({
         "status": "dynamics_completed", "scope": scope,
@@ -347,7 +380,8 @@ def _dynamics_stage(out, scope, seed, rho, beta_by_rep, max_steps, tolerance,
 def run(args=None):
     cfg = PipelineConfig()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stage", choices=("inspect", "threshold", "real", "synthetic", "dynamics"),
+    parser.add_argument("--stage", choices=("inspect", "threshold", "real", "synthetic",
+                                             "dynamics-validate", "dynamics"),
                         default="threshold")
     parser.add_argument("--data-dir", default="data")
     parser.add_argument("--out", default="results_network_analysis")
@@ -388,6 +422,10 @@ def run(args=None):
     elif ns.stage == "synthetic":
         _synthetic_stage(out, cfg, ns.realizations, ns.seed,
                          ns.path_sample_sources, ns.betweenness_k)
+    elif ns.stage == "dynamics-validate":
+        if ns.rho is None:
+            parser.error("For --stage dynamics-validate, provide --rho to calculate beta_c.")
+        _dynamics_validation_stage(out, ns.scope, ns.rho, ns.expected_nodes)
     elif ns.stage == "dynamics":
         required = {"rho": ns.rho, "beta-uu": ns.beta_uu,
                     "beta-ud": ns.beta_ud, "beta-wd": ns.beta_wd}
@@ -402,7 +440,7 @@ def run(args=None):
             out, ns.scope, ns.seed, ns.rho,
             {"UU": ns.beta_uu, "UD": ns.beta_ud, "WD": ns.beta_wd},
             ns.max_steps, ns.tolerance, ns.real_seed_sets,
-            ns.synthetic_seed_sets, ns.infection_fraction,
+            ns.synthetic_seed_sets, ns.infection_fraction, ns.expected_nodes,
         )
 
 

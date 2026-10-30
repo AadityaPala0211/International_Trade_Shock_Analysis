@@ -87,23 +87,50 @@ The experiment parameters follow the plan:
 - Directed orientation is calibrated to pooled empirical UD reciprocity.
 - WD edge weights are sampled from empirical retained dependency shares. Buyer incoming totals are sampled conditionally on synthetic buyer in-degree; nearest-degree fallback is used only when the exact in-degree is absent.
 
-### 5. Run the single SIS Model A
+### 5. Validate the persisted matrices before the SIS run
 
-The model stage can be run on real matrices, synthetic matrices or both. It requires explicit absolute \(\beta\) values and common \(\rho\); the values below are examples only and must be justified for the experiment.
+Do this only after the structural stages have finished and the empirical/synthetic manifests and matrices are present. This is a preflight; it **does not run SIS** and it does not write to the structural output folders.
 
-Real networks:
+For real networks only:
+
+```bash
+python -m network_structural_analysis.run_pipeline --stage dynamics-validate --scope real --out results_network_analysis --rho 0.2
+```
+
+For the final full experiment, after both empirical and synthetic networks are present:
+
+```bash
+python -m network_structural_analysis.run_pipeline --stage dynamics-validate --scope all --out results_network_analysis --rho 0.2
+```
+
+The full preflight checks all 546 matrices (six empirical and 540 synthetic), dimensions, finite/nonnegative weights, no diagonal links, binary UU/UD, WD weights in [0,1], symmetric UU matrices, and the paired support rules: WD must have the same directed support as UD, and UU must equal the undirected union of UD. It also verifies the six empirical year/representation combinations and the nine synthetic configurations with paired UU/UD/WD representations and common realization IDs/seeds.
+
+Review:
+
+- `results_network_analysis/dynamics/validation_all/dynamics_input_precheck.csv`: one row per matrix, including edge count, checksum, largest eigenvalue and \(\beta_c\).
+- `results_network_analysis/dynamics/validation_all/dynamics_input_validation.json`: the overall validation report and \(\beta_c\) ranges by representation.
+
+Use the actual \(\beta_c\) values to choose the absolute \(\beta\) values. Do not copy the illustrative beta values below without checking their scale. For the final comparison across all 546 matrices, choose one \(\rho\) and one absolute \(\beta\) per representation, then hold those three betas fixed across every network. In particular, WD's weighted dependency-share scale differs from binary UU/UD.
+
+### 6. Run the single SIS Model A
+
+For the complete final comparison, run all matrices together after the full preflight passes:
+
+```bash
+python -m network_structural_analysis.run_pipeline --stage dynamics --scope all --out results_network_analysis --rho 0.2 --beta-uu 0.1 --beta-ud 0.1 --beta-wd 0.1
+```
+
+The beta values shown here are **illustrative syntax only**. Replace them with the values you chose after examining the preflight table. Keep the same values when running the full scope.
+
+For an optional empirical-only trial before synthetic matrices exist:
 
 ```bash
 python -m network_structural_analysis.run_pipeline --stage dynamics --scope real --out results_network_analysis --rho 0.2 --beta-uu 0.1 --beta-ud 0.1 --beta-wd 0.1
 ```
 
-Synthetic networks:
+When the synthetic matrices exist, you can also preflight or run them separately using `--scope synthetic`. For a scientifically consistent comparison of the real and synthetic networks, however, prefer one `--scope all` run with common absolute beta values.
 
-```bash
-python -m network_structural_analysis.run_pipeline --stage dynamics --scope synthetic --out results_network_analysis --rho 0.2 --beta-uu 0.1 --beta-ud 0.1 --beta-wd 0.1
-```
-
-Or run all available real and synthetic matrices together with `--scope all`. The model is:
+The single implemented model is:
 
 \[
 d_j(t+1)=\operatorname{clip}_{[0,1]}\left((1-\rho)d_j(t)
@@ -111,9 +138,11 @@ d_j(t+1)=\operatorname{clip}_{[0,1]}\left((1-\rho)d_j(t)
 \qquad e(t)=B^T d(t).
 \]
 
-Use \(B=A\) for UU and UD, and \(B=P\) for WD. The critical transmission is \(\beta_c=\rho/\lambda_{max}(B)\). The package runs the absolute-strength experiment and the normalized \(\eta=\beta/\beta_c\) experiment at \(\eta\in\{0.5,0.9,1.0,1.1,1.5,2.0\}\). It uses 20 real initial seed sets matched across 2019/2022 and five seed sets per synthetic skeleton reused across its paired UU/UD/WD matrices. The default initial infected fraction is 1%.
+Here \(B=A\) for UU and UD, and \(B=P\) for WD. The critical transmission is \(\beta_c=\rho/\lambda_{max}(B)\). The package runs one absolute-strength scenario and six normalized scenarios with \(\eta=\beta/\beta_c\) at \(\eta\in\{0.5,0.9,1.0,1.1,1.5,2.0\}\). It uses 20 real initial seed sets matched across 2019/2022 and all three representations, and five initial seed sets per synthetic skeleton reused across its paired UU/UD/WD matrices. The default initial infected fraction is 1% (41 nodes for 4,050 nodes).
 
-Useful dynamics controls include `--max-steps`, `--tolerance`, `--real-seed-sets`, `--synthetic-seed-sets`, and `--infection-fraction`. Absolute beta values are constant within each representation across the matrices in a run; do not silently retune them by graph.
+Controls include `--max-steps`, `--tolerance`, `--real-seed-sets`, `--synthetic-seed-sets`, `--infection-fraction`, and `--seed`. \(\rho\) must be positive and at most one. Absolute beta values are constant within each representation across the matrices in a run; do not silently retune them by graph.
+
+The dynamics run writes only beneath `results_network_analysis/dynamics/{real,synthetic,all}/`. It does not overwrite empirical or synthetic structural matrices, node metrics, edge lists or structural summaries.
 
 ## Output structure
 
@@ -127,6 +156,7 @@ Useful dynamics controls include `--max-steps`, `--tolerance`, `--real-seed-sets
 - `synthetic/matrices/{ER,BA,WS}/config_*/realization_*/{UU,UD,WD}.npz`: all 540 synthetic matrices.
 - `synthetic/node_metrics/` and `synthetic/degree_distributions/`: per-matrix node metrics plus separate in-degree, out-degree and undirected-projection degree distributions.
 - `synthetic/synthetic_network_manifest.csv`: matrix paths and paired realization seeds.
+- `dynamics/validation_{real,synthetic,all}/`: preflight matrix validation, checksums and per-matrix spectral thresholds; no SIS simulation is run by this stage.
 - `dynamics/{real,synthetic,all}/`: seed-level and network-level Model A summaries, per-network trajectories, seed-set/graph-level confidence intervals, aggregated trajectory tables, and plots under `trajectory_summaries/plots/`.
 
 Do not commit generated results or duplicate source CSV files unless intentionally required.
