@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 from scipy.stats import t as student_t
+import matplotlib.pyplot as plt
 from scipy.sparse import load_npz
 from .config import ETA_LEVELS, REPRESENTATIONS
 from .metrics import _safe_spectral_radius
@@ -107,7 +108,7 @@ def _seed_outcomes(trace, network_id, scenario, seed_set_id, eta,
         "lambda_max": float(lambda_max), "seed_set_id": int(seed_set_id),
         "peak_prevalence": float(p[peak_idx]), "time_to_peak": peak_idx,
         "long_run_prevalence": long_run,
-        "cumulative_prevalence": float(np.trapz(p, dx=1.0)),
+        "cumulative_prevalence": float(np.sum(p)),
         "extinction_time": trace["extinction_time"],
         "extinct": trace["extinct"], "converged": trace["converged"],
         "iterations": trace["iterations"], "final_prevalence": float(p[-1]),
@@ -230,6 +231,9 @@ def run_dynamics_analysis(network_records, out_dir, seed=20261030, rho=0.2,
                             if len(seed_sets) > 1 else 0.0)
                 frame = pd.DataFrame({
                     "network_id": network_id, "network_type": network_type,
+                    "year": record.get("year"), "family": record.get("family"),
+                    "configuration": record.get("configuration"),
+                    "realization": record.get("realization"),
                     "representation": representation, "scenario": scenario, "eta": eta,
                     "beta": float(beta), "beta_critical": float(beta_c), "rho": float(rho),
                     "time": np.arange(length), "prevalence_mean": p_mean,
@@ -248,13 +252,13 @@ def run_dynamics_analysis(network_records, out_dir, seed=20261030, rho=0.2,
     pd.DataFrame(seed_manifest).drop_duplicates(
         subset=["seed_group", "seed_set_id"]
     ).to_csv(out / "initial_seed_sets.csv.gz", index=False, compression="gzip")
+    _save_trajectory_summaries_and_plots(traj_path, out / "trajectory_summaries")
 
     if not network_results.empty:
-        metric = "peak_prevalence_mean_across_seed_sets"
         synthetic = network_results[network_results.network_type == "synthetic"]
         if not synthetic.empty:
             group_cols = ["family", "configuration", "representation", "scenario", "eta"]
-            _write_ensemble_summary(synthetic, group_cols, metric,
+            _write_ensemble_summary(synthetic, group_cols,
                                     out / "synthetic_dynamics_ensemble_summary.csv")
         real = network_results[network_results.network_type == "real"]
         if not real.empty:
@@ -281,20 +285,123 @@ def run_dynamics_analysis(network_records, out_dir, seed=20261030, rho=0.2,
     return network_results, seed_results
 
 
-def _write_ensemble_summary(frame, group_cols, metric, output_path):
+def _save_trajectory_summaries_and_plots(trajectory_path, out_dir):
+    """Save seed-set bands for empirical trajectories and graph-level bands for synthetic ones."""
+    out = Path(out_dir)
+    real_plot_dir = out / "plots" / "real"
+    synthetic_plot_dir = out / "plots" / "synthetic"
+    real_plot_dir.mkdir(parents=True, exist_ok=True)
+    synthetic_plot_dir.mkdir(parents=True, exist_ok=True)
+    frame = pd.read_csv(trajectory_path)
+    if frame.empty:
+        return
+
+    real = frame[frame["network_type"] == "real"].copy()
+    if not real.empty:
+        keys = ["year", "representation", "scenario", "eta", "time"]
+        real_summary = real.groupby(keys, dropna=False, as_index=False).agg(
+            prevalence_mean=("prevalence_mean", "mean"),
+            prevalence_ci95_seed_low=("prevalence_ci95_seed_low", "mean"),
+            prevalence_ci95_seed_high=("prevalence_ci95_seed_high", "mean"),
+            mean_exposure=("mean_exposure", "mean"),
+        )
+        real_summary.to_csv(out / "real_trajectory_summary.csv.gz",
+                            index=False, compression="gzip")
+        for (representation, scenario), group in real_summary.groupby(["representation", "scenario"]):
+            fig, ax = plt.subplots(figsize=(7.5, 4.8))
+            for year, year_group in group.groupby("year"):
+                year_group = year_group.sort_values("time")
+                x = year_group["time"].to_numpy()
+                mean = year_group["prevalence_mean"].to_numpy()
+                low = year_group["prevalence_ci95_seed_low"].to_numpy()
+                high = year_group["prevalence_ci95_seed_high"].to_numpy()
+                ax.plot(x, mean, label=str(int(year)))
+                ax.fill_between(x, low, high, alpha=.15)
+            ax.set_xlabel("Discrete time step")
+            ax.set_ylabel("Mean prevalence")
+            ax.set_ylim(0, 1)
+            ax.set_title(f"Real ICIO SIS trajectory: {representation}, {scenario}")
+            ax.legend(title="ICIO year")
+            ax.grid(alpha=.25)
+            fig.tight_layout()
+            safe_scenario = str(scenario).replace(".", "p")
+            fig.savefig(real_plot_dir / f"trajectory_{representation}_{safe_scenario}.png", dpi=180)
+            plt.close(fig)
+
+    synthetic = frame[frame["network_type"] == "synthetic"].copy()
+    if not synthetic.empty:
+        keys = ["family", "configuration", "representation", "scenario", "eta", "time"]
+        grouped = synthetic.groupby(keys, dropna=False, as_index=False).agg(
+            realization_count=("network_id", "nunique"),
+            prevalence_mean=("prevalence_mean", "mean"),
+            prevalence_sd_across_realizations=("prevalence_mean", "std"),
+            mean_exposure=("mean_exposure", "mean"),
+        )
+        counts = grouped["realization_count"].to_numpy(dtype=int)
+        sd = grouped["prevalence_sd_across_realizations"].fillna(0).to_numpy(dtype=float)
+        se = np.divide(sd, np.sqrt(counts), out=np.zeros_like(sd), where=counts > 0)
+        critical = np.array([student_t.ppf(.975, n - 1) if n > 1 else 0.0 for n in counts])
+        half = critical * se
+        grouped["prevalence_ci95_graph_low"] = np.clip(
+            grouped["prevalence_mean"].to_numpy() - half, 0, 1)
+        grouped["prevalence_ci95_graph_high"] = np.clip(
+            grouped["prevalence_mean"].to_numpy() + half, 0, 1)
+        grouped.to_csv(out / "synthetic_trajectory_summary.csv.gz",
+                       index=False, compression="gzip")
+        for (family, representation, scenario), subset in grouped.groupby(
+                ["family", "representation", "scenario"]):
+            fig, ax = plt.subplots(figsize=(7.5, 4.8))
+            for configuration, config_group in subset.groupby("configuration"):
+                config_group = config_group.sort_values("time")
+                x = config_group["time"].to_numpy()
+                mean = config_group["prevalence_mean"].to_numpy()
+                low = config_group["prevalence_ci95_graph_low"].to_numpy()
+                high = config_group["prevalence_ci95_graph_high"].to_numpy()
+                ax.plot(x, mean, label=f"Configuration {int(configuration)}")
+                ax.fill_between(x, low, high, alpha=.15)
+            ax.set_xlabel("Discrete time step")
+            ax.set_ylabel("Mean prevalence")
+            ax.set_ylim(0, 1)
+            ax.set_title(f"Synthetic SIS trajectory: {family}, {representation}, {scenario}")
+            ax.legend()
+            ax.grid(alpha=.25)
+            fig.tight_layout()
+            safe_scenario = str(scenario).replace(".", "p")
+            fig.savefig(synthetic_plot_dir /
+                        f"trajectory_{family}_{representation}_{safe_scenario}.png", dpi=180)
+            plt.close(fig)
+
+
+def _write_ensemble_summary(frame, group_cols, output_path):
+    """Compute graph-to-graph CIs for multiple metrics after seed-set averaging."""
+    metric_columns = {
+        "peak_prevalence": "peak_prevalence_mean_across_seed_sets",
+        "time_to_peak": "time_to_peak_mean_across_seed_sets",
+        "long_run_prevalence": "long_run_prevalence_mean_across_seed_sets",
+        "cumulative_prevalence": "cumulative_prevalence_mean_across_seed_sets",
+        "final_prevalence": "final_prevalence_mean_across_seed_sets",
+        "max_mean_exposure": "max_mean_exposure_mean_across_seed_sets",
+        "extinction_fraction": "extinction_fraction",
+        "convergence_fraction": "convergence_fraction",
+    }
     rows = []
     for keys, group in frame.groupby(group_cols, dropna=False):
         if not isinstance(keys, tuple):
             keys = (keys,)
         row = dict(zip(group_cols, keys))
-        mean, sd, low, high, count = _ci(group[metric].to_numpy(dtype=float))
-        row.update({
-            "independent_synthetic_realizations": int(count),
-            "mean_across_graph_realization_means": mean,
-            "sd_across_graph_realization_means": sd,
-            "ci95_low_across_graph_realizations": low,
-            "ci95_high_across_graph_realizations": high,
-            "within_network_seed_variability_is_separately_reported": True,
-        })
+        row["independent_synthetic_realizations"] = int(group["network_id"].nunique())
+        for output_name, source_column in metric_columns.items():
+            if source_column not in group:
+                continue
+            mean, sd, low, high, count = _ci(group[source_column].to_numpy(dtype=float))
+            row[f"{output_name}_mean_across_graph_realizations"] = mean
+            row[f"{output_name}_sd_across_graph_realizations"] = sd
+            row[f"{output_name}_ci95_low_across_graph_realizations"] = low
+            row[f"{output_name}_ci95_high_across_graph_realizations"] = high
+            row[f"{output_name}_valid_graph_count"] = int(count)
+        row["uncertainty_note"] = (
+            "Within-network seed-set uncertainty is reported in dynamics_network_results.csv.gz; "
+            "these intervals describe variation across independent graph realizations."
+        )
         rows.append(row)
     pd.DataFrame(rows).to_csv(output_path, index=False)

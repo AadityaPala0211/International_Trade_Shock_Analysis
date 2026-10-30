@@ -15,7 +15,7 @@ from network_structural_analysis.synthetic import (
 from network_structural_analysis.metrics import structural_analysis
 from network_structural_analysis.data_loader import _find_contiguous_numeric_block
 from network_structural_analysis.provenance import inspect_icio_readme, summarize_icio_provenance
-from network_structural_analysis.dynamics import simulate_sis, critical_beta, build_seed_sets
+from network_structural_analysis.dynamics import simulate_sis, critical_beta, build_seed_sets, _write_ensemble_summary
 
 
 class TestNetworkPipeline(unittest.TestCase):
@@ -111,6 +111,28 @@ class TestNetworkPipeline(unittest.TestCase):
         self.assertAlmostEqual(beta_c, .2, places=5)
         seeds = build_seed_sets(4050, 5, 123)
         self.assertTrue(all(len(x) == 41 for x in seeds))
+
+    def test_synthetic_dynamics_summary_reports_multiple_graph_level_cis(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            frame = pd.DataFrame({
+                "network_id": ["g1", "g2"], "family": ["ER", "ER"],
+                "configuration": [1, 1], "representation": ["UD", "UD"],
+                "scenario": ["eta_1", "eta_1"], "eta": [1.0, 1.0],
+                "peak_prevalence_mean_across_seed_sets": [0.2, 0.4],
+                "time_to_peak_mean_across_seed_sets": [5.0, 7.0],
+                "long_run_prevalence_mean_across_seed_sets": [0.1, 0.3],
+                "cumulative_prevalence_mean_across_seed_sets": [3.0, 4.0],
+                "final_prevalence_mean_across_seed_sets": [0.1, 0.3],
+                "max_mean_exposure_mean_across_seed_sets": [0.4, 0.6],
+                "extinction_fraction": [0.5, 0.0], "convergence_fraction": [0.5, 1.0],
+            })
+            path = Path(tmp) / "summary.csv"
+            _write_ensemble_summary(frame, ["family", "configuration", "representation", "scenario", "eta"], path)
+            summary = pd.read_csv(path)
+            self.assertEqual(len(summary), 1)
+            self.assertIn("peak_prevalence_ci95_low_across_graph_realizations", summary.columns)
+            self.assertIn("long_run_prevalence_mean_across_graph_realizations", summary.columns)
+            self.assertIn("extinction_fraction_mean_across_graph_realizations", summary.columns)
 
     def test_structural_metrics_match_networkx_on_toy_graph(self):
         A = sparse.csr_matrix(np.array([[0, 1, 0], [0, 0, 1], [0, 0, 0]], dtype=np.uint8))

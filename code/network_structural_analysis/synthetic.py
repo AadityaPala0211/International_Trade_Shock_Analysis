@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 from scipy import sparse
+from scipy.stats import t as student_t
 from scipy.sparse import save_npz
 from .config import FAMILIES, SyntheticConfig
 from .metrics import structural_analysis
@@ -301,8 +302,9 @@ def run_synthetic_ensemble(n, empirical_mean_degree, empirical_reciprocity,
                 row[f"{metric}_mean"] = float(values.mean()) if len(values) else np.nan
                 row[f"{metric}_sd"] = float(values.std(ddof=1)) if len(values) > 1 else np.nan
                 se = values.std(ddof=1) / np.sqrt(len(values)) if len(values) > 1 else np.nan
-                row[f"{metric}_ci95_low"] = float(values.mean() - 1.96 * se) if len(values) > 1 else np.nan
-                row[f"{metric}_ci95_high"] = float(values.mean() + 1.96 * se) if len(values) > 1 else np.nan
+                half = float(student_t.ppf(.975, len(values) - 1) * se) if len(values) > 1 else np.nan
+                row[f"{metric}_ci95_low"] = float(values.mean() - half) if len(values) > 1 else np.nan
+                row[f"{metric}_ci95_high"] = float(values.mean() + half) if len(values) > 1 else np.nan
             aggregates.append(row)
         pd.DataFrame(aggregates).to_csv(out / "synthetic_configuration_summaries.csv", index=False)
         _save_json(out / "synthetic_experiment_design.json", {
