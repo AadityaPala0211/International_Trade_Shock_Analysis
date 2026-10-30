@@ -98,19 +98,65 @@ def _read_network_records(results_root, scope, synthetic_realizations):
                 "matrix_path": results_root / "synthetic" / str(row["matrix_path"]),
                 "node_metrics_path": results_root / "synthetic" / str(row["node_metrics_path"]),
             })
-        if not frame.empty:
-            skeletons = {}
-            for row in frame.to_dict("records"):
-                key = (str(row["family"]), str(row["configuration"]), str(row["realization"]))
-                skeletons.setdefault(key, set()).add(str(row["representation"]))
-            incomplete = [key for key, reps in skeletons.items() if reps != {"UU", "UD", "WD"}]
-            if incomplete:
-                raise ValueError(f"Synthetic selection contains incomplete paired skeletons: {incomplete[:5]}")
-        elif scope == "synthetic":
+        if frame.empty:
             raise ValueError("Synthetic manifest selection is empty.")
+        skeletons = {}
+        for row in frame.to_dict("records"):
+            key = (str(row["family"]), str(row["configuration"]), str(row["realization"]))
+            skeletons.setdefault(key, set()).add(str(row["representation"]))
+        incomplete = [key for key, reps in skeletons.items() if reps != {"UU", "UD", "WD"}]
+        if incomplete:
+            raise ValueError(f"Synthetic selection contains incomplete paired skeletons: {incomplete[:5]}")
+        expected_configs = {(family, config) for family in ("ER", "BA", "WS") for config in ("1", "2", "3")}
+        observed_configs = {(str(row["family"]), str(row["configuration"])) for row in frame.to_dict("records")}
+        if observed_configs != expected_configs:
+            raise ValueError(f"Synthetic manifest must contain all nine ER/BA/WS configurations; missing={sorted(expected_configs-observed_configs)}.")
+        realization_sets = {}
+        for family, config, realization in skeletons:
+            realization_sets.setdefault((family, config), set()).add(str(realization))
+        sets = [frozenset(values) for values in realization_sets.values()]
+        if len(sets) != 9 or len(set(sets)) != 1:
+            raise ValueError("All nine synthetic configurations must have identical realization IDs.")
+        observed_ids = next(iter(sets))
+        expected_ids = (
+            frozenset(str(i) for i in range(1, synthetic_realizations+1))
+            if synthetic_realizations > 0
+            else frozenset(str(i) for i in range(1, len(observed_ids)+1))
+        )
+        if observed_ids != expected_ids:
+            raise ValueError(f"Synthetic realization IDs must be {sorted(expected_ids)}; found {sorted(observed_ids)}.")
     if not records:
         raise ValueError("No network matrices selected.")
     return records
+
+
+def _validate_paired_support(records):
+    """Recheck the paired UU/UD/WD construction before any shock simulations."""
+    groups = {}
+    for record in records:
+        if record["network_type"] == "real":
+            key = ("real", int(record["year"]))
+        else:
+            key = ("synthetic", str(record["family"]), str(record["configuration"]),
+                   str(record["realization"]))
+        groups.setdefault(key, {})[str(record["representation"]).upper()] = record
+    for key, triplet in groups.items():
+        if set(triplet) != {"UU", "UD", "WD"}:
+            raise ValueError(f"{key}: requires exactly one UU, UD and WD matrix.")
+        uu = (load_npz(triplet["UU"]["matrix_path"]) != 0).astype(np.int8).tocsr()
+        ud = (load_npz(triplet["UD"]["matrix_path"]) != 0).astype(np.int8).tocsr()
+        wd = (load_npz(triplet["WD"]["matrix_path"]) != 0).astype(np.int8).tocsr()
+        if uu.shape != ud.shape or ud.shape != wd.shape:
+            raise ValueError(f"{key}: paired matrices have different dimensions.")
+        difference = ud - wd
+        difference.eliminate_zeros()
+        if difference.nnz:
+            raise ValueError(f"{key}: WD and UD must have identical directed support.")
+        expected_uu = ud.maximum(ud.T).tocsr()
+        difference = uu - expected_uu
+        difference.eliminate_zeros()
+        if difference.nnz:
+            raise ValueError(f"{key}: UU must equal the undirected union of UD and UD.T.")
 
 
 def _scenario_parameters(name, representation, beta_by_rep, beta_c):
@@ -193,6 +239,7 @@ def run(args=None):
 
     try:
         records = _read_network_records(results_root, ns.scope, ns.synthetic_realizations)
+        _validate_paired_support(records)
         beta_by_rep = {"UU": ns.beta_uu, "UD": ns.beta_ud, "WD": ns.beta_wd}
         scenarios = list(dict.fromkeys(ns.scenarios))
         if not scenarios:
@@ -256,6 +303,7 @@ def run(args=None):
                     seed=ns.seed + sum(ord(ch) for ch in network_key),
                     max_steps=ns.max_steps, tolerance=ns.tolerance,
                     centralities=centralities,
+                    initial_infection=ns.initial_infection,
                 )
                 targeted_summary = summarize_targeted_cohorts(targeted)
                 correlations = centrality_impact_correlations(census)
