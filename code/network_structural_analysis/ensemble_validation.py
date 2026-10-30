@@ -257,8 +257,9 @@ def validate_network_manifests(out_dir, scope="all", expected_nodes=4050,
                     "rerunning --stage synthetic now cleans these stale files before generation."
                 )
 
-    # Load one paired triplet at a time; do not retain the full 4,050-node ensemble in memory.
-    paired_groups = {}
+    # Validate each matrix, then reload only one paired triplet at a time for
+    # support checks. This bounds peak memory independently of ensemble size.
+    paired_records = {}
     for network_type, records in records_by_type.items():
         if (network_type == "real" and scope not in ("real", "all")) or (
             network_type == "synthetic" and scope not in ("synthetic", "all")
@@ -268,18 +269,27 @@ def validate_network_manifests(out_dir, scope="all", expected_nodes=4050,
             try:
                 matrix, check = _validate_one_matrix(record, expected_nodes)
                 matrix_checks.append(check)
+                del matrix
                 if network_type == "real":
                     group_key = ("real", int(record["year"]))
                 else:
                     group_key = ("synthetic", str(record["family"]),
                                  int(record["level"]), int(record["realization"]))
-                paired_groups.setdefault(group_key, {})[str(record["representation"])] = matrix
+                paired_records.setdefault(group_key, {})[str(record["representation"])] = record
             except Exception as exc:
                 errors.append(f"{record.get('network_id')}: {exc}")
 
-    for group_key, matrices in paired_groups.items():
+    for group_key, group_records in paired_records.items():
         try:
+            missing = sorted(set(REPRESENTATIONS) - set(group_records))
+            if missing:
+                raise ValueError(f"{group_key}: missing representations {missing}")
+            matrices = {
+                representation: load_npz(_matrix_path(record)).tocsr()
+                for representation, record in group_records.items()
+            }
             _validate_paired_group(group_key, matrices)
+            del matrices
         except Exception as exc:
             errors.append(str(exc))
 
