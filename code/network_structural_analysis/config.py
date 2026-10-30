@@ -13,7 +13,7 @@ class ThresholdConfig:
     recommended_min_flow_coverage: float = 0.90
     recommended_max_density: float = 0.20
     path_sample_sources: int = 256
-    betweenness_k: int = 256
+    betweenness_k: int = 64
 
 @dataclass(frozen=True)
 class SyntheticConfig:
@@ -23,7 +23,6 @@ class SyntheticConfig:
     mean_degree_multipliers: tuple = (0.75, 1.00, 1.25)
     ba_multipliers: tuple = (0.75, 1.00, 1.25)
     weight_distribution_sample_cap: int = 2_000_000
-    directed_reciprocity_calibration: bool = True
 
 @dataclass(frozen=True)
 class PipelineConfig:
@@ -32,6 +31,6 @@ class PipelineConfig:
     synthetic: SyntheticConfig = SyntheticConfig()
 
     def to_dict(self):
-        return {"expected_nodes": self.expected_nodes,
-                "threshold": asdict(self.threshold),
-                "synthetic": asdict(self.synthetic)}
+        return {"expected_nodes":self.expected_nodes,
+                "threshold":asdict(self.threshold),
+                "synthetic":asdict(self.synthetic)}

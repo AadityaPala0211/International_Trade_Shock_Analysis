@@ -21,12 +21,12 @@ jobs:
       - run: python -m pip install -r code/network_structural_analysis/requirements.txt
       - name: Threshold review
         if: inputs.mode == 'threshold'
-        run: PYTHONPATH=code python -m network_structural_analysis.run_pipeline --data-dir data --out results_network_analysis/threshold_review --threshold-only
+        run: PYTHONPATH=code python -m network_structural_analysis.run_pipeline --data-dir data --out results_network_analysis --threshold-only
       - name: Full analysis
         if: inputs.mode == 'full'
         run: PYTHONPATH=code python -m network_structural_analysis.run_pipeline --data-dir data --out results_network_analysis --realizations 20
       - uses: actions/upload-artifact@v4
         with:
-          name: network-structural-analysis-${{ inputs.mode }}
+          name: network-structural-analysis-\${{ inputs.mode }}
           path: results_network_analysis/
           if-no-files-found: error
