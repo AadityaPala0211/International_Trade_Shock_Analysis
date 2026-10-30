@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy import sparse
+from scipy.sparse import save_npz
 import networkx as nx
 from network_structural_analysis.config import SyntheticConfig
 from network_structural_analysis.network_builder import dependency_shares, make_representations
@@ -15,7 +16,11 @@ from network_structural_analysis.synthetic import (
 from network_structural_analysis.metrics import structural_analysis
 from network_structural_analysis.data_loader import _find_contiguous_numeric_block
 from network_structural_analysis.provenance import inspect_icio_readme, summarize_icio_provenance
-from network_structural_analysis.dynamics import simulate_sis, critical_beta, build_seed_sets, _write_ensemble_summary, _save_trajectory_summaries_and_plots, _ci
+from network_structural_analysis.dynamics import (
+    simulate_sis, simulate_sis_ensemble, critical_beta, build_seed_sets,
+    _write_ensemble_summary, _save_trajectory_summaries_and_plots, _ci,
+    validate_network_records, run_dynamics_analysis,
+)
 from network_structural_analysis.ensemble_validation import validate_network_manifests
 
 
@@ -210,6 +215,172 @@ class TestNetworkPipeline(unittest.TestCase):
         seeds = build_seed_sets(4050, 5, 123)
         self.assertTrue(all(len(x) == 41 for x in seeds))
 
+    def _write_complete_dynamics_fixture(self, root):
+        root = Path(root)
+        ud = sparse.csr_matrix(np.array([
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1],
+            [1, 0, 0, 0],
+        ], dtype=np.uint8))
+        uu = ud.maximum(ud.T).tocsr()
+        coo = ud.tocoo()
+        wd = sparse.csr_matrix(
+            (np.array([0.2, 0.3, 0.4, 0.5]), (coo.row, coo.col)),
+            shape=ud.shape,
+        )
+        matrices = {"UU": uu, "UD": ud, "WD": wd}
+        records = []
+
+        for year in (2019, 2022):
+            for rep, matrix in matrices.items():
+                path = root / "empirical" / str(year) / rep / "adjacency.npz"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                save_npz(path, matrix)
+                records.append({
+                    "network_id": f"real_{year}_{rep}", "network_type": "real",
+                    "year": year, "representation": rep, "matrix_path": str(path),
+                })
+
+        for family in ("ER", "BA", "WS"):
+            for configuration in (1, 2, 3):
+                realization = 1
+                group_seeds = {
+                    "graph_seed": 1000 + configuration,
+                    "orientation_seed": 2000 + configuration,
+                    "weight_seed": 3000 + configuration,
+                }
+                for rep, matrix in matrices.items():
+                    path = (root / "synthetic" / "matrices" / family /
+                            f"config_{configuration}" / "realization_001" / f"{rep}.npz")
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    save_npz(path, matrix)
+                    records.append({
+                        "network_id": f"syn_{family}_{configuration}_001_{rep}",
+                        "network_type": "synthetic", "family": family,
+                        "configuration": configuration, "realization": realization,
+                        "representation": rep, "matrix_path": str(path),
+                        **group_seeds,
+                    })
+        return records, matrices
+
+    def test_batched_sis_matches_individual_seed_simulations(self):
+        B = sparse.csr_matrix(np.array([
+            [0., 1., 0., 0.],
+            [0., 0., 1., 0.],
+            [0., 0., 0., 1.],
+            [1., 0., 0., 0.],
+        ]))
+        initial_states = np.array([
+            [1., 0., 0.],
+            [0., 1., 0.],
+            [0., 0., 1.],
+            [0., 0., 0.],
+        ])
+        batched = simulate_sis_ensemble(
+            B, initial_states, beta=.35, rho=.2, max_steps=30, tolerance=1e-7)
+        individual = [
+            simulate_sis(B, initial_states[:, j], beta=.35, rho=.2,
+                         max_steps=30, tolerance=1e-7)
+            for j in range(initial_states.shape[1])
+        ]
+        self.assertEqual(len(batched), len(individual))
+        for actual, expected in zip(batched, individual):
+            self.assertTrue(np.allclose(actual["prevalence"], expected["prevalence"]))
+            self.assertTrue(np.allclose(actual["mean_exposure"], expected["mean_exposure"]))
+            self.assertTrue(np.allclose(actual["total_exposure"], expected["total_exposure"]))
+            self.assertEqual(actual["iterations"], expected["iterations"])
+            self.assertEqual(actual["extinct"], expected["extinct"])
+            self.assertEqual(actual["converged"], expected["converged"])
+
+    def test_sis_directed_force_flows_from_supplier_to_buyer(self):
+        B = sparse.csr_matrix(np.array([[0., 1.], [0., 0.]]))
+        result = simulate_sis(B, [1., 0.], beta=1.0, rho=.25, max_steps=1)
+        self.assertTrue(np.allclose(result["final_state"], [.75, 1.0]))
+        self.assertAlmostEqual(result["prevalence"][-1], .875)
+
+    def test_sis_manifest_precheck_validates_full_design_semantics_on_fixture(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            records, matrices = self._write_complete_dynamics_fixture(tmp)
+            normalised, diagnostics, report = validate_network_records(
+                records, rho=.2, expected_scope="all",
+                require_full_design=True, expected_nodes=4,
+                expected_synthetic_realizations=1,
+            )
+            self.assertEqual(len(normalised), 33)
+            self.assertEqual(len(diagnostics), 33)
+            self.assertEqual(report["real_network_count"], 6)
+            self.assertEqual(report["synthetic_network_count"], 27)
+            self.assertEqual(report["synthetic_skeleton_count"], 9)
+            self.assertEqual(report["synthetic_configuration_count"], 9)
+            self.assertEqual(set(report["beta_critical_by_representation"]), {"UU", "UD", "WD"})
+            self.assertEqual(set(diagnostics["n_nodes"]), {4})
+
+    def test_sis_precheck_enforces_expected_synthetic_realization_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            records, _ = self._write_complete_dynamics_fixture(tmp)
+            with self.assertRaisesRegex(ValueError, "Expected 20 realizations"):
+                validate_network_records(
+                    records, rho=.2, expected_scope="all",
+                    require_full_design=True, expected_nodes=4,
+                    expected_synthetic_realizations=20,
+                )
+
+    def test_sis_precheck_rejects_unpaired_synthetic_weighted_support(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            records, matrices = self._write_complete_dynamics_fixture(tmp)
+            target = next(
+                r for r in records
+                if r["network_type"] == "synthetic" and r["family"] == "ER"
+                and r["configuration"] == 1 and r["representation"] == "WD"
+            )
+            corrupted = matrices["WD"].tolil()
+            corrupted[0, 1] = 0.0
+            save_npz(target["matrix_path"], corrupted.tocsr())
+            with self.assertRaisesRegex(ValueError, "WD and UD must have identical"):
+                validate_network_records(
+                    records, rho=.2, expected_scope="all",
+                    require_full_design=True, expected_nodes=4,
+                    expected_synthetic_realizations=1,
+                )
+
+    def test_full_dynamics_end_to_end_real_and_synthetic_fixture(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            records, _ = self._write_complete_dynamics_fixture(tmp)
+            output = Path(tmp) / "dynamics" / "all"
+            network_results, seed_results = run_dynamics_analysis(
+                records, output, seed=42, rho=.2,
+                beta_by_rep={"UU": .05, "UD": .05, "WD": .2},
+                max_steps=5, tolerance=1e-7,
+                real_seed_sets=2, synthetic_seed_sets=2,
+                infection_fraction=.25, expected_scope="all",
+                require_full_design=True, expected_nodes=4, write_plots=False,
+                expected_synthetic_realizations=1,
+            )
+            self.assertEqual(network_results["network_id"].nunique(), 33)
+            self.assertEqual(network_results["scenario"].nunique(), 7)
+            self.assertEqual(len(network_results), 33 * 7)
+            self.assertEqual(len(seed_results), 33 * 7 * 2)
+            self.assertTrue((output / "dynamics_input_precheck.csv").exists())
+            self.assertTrue((output / "dynamics_input_validation.json").exists())
+            self.assertTrue((output / "dynamics_seed_results.csv.gz").exists())
+            self.assertTrue((output / "dynamics_network_results.csv.gz").exists())
+            self.assertTrue((output / "dynamics_trajectories.csv.gz").exists())
+            self.assertTrue((output / "initial_seed_sets.csv.gz").exists())
+            self.assertTrue((output / "network_seed_group_assignments.csv").exists())
+            self.assertTrue((output / "synthetic_dynamics_ensemble_summary.csv").exists())
+            self.assertTrue((output / "real_dynamics_seedset_summary.csv").exists())
+            assignments = pd.read_csv(output / "network_seed_group_assignments.csv")
+            real_assignments = assignments[assignments.network_type == "real"]
+            self.assertEqual(real_assignments["seed_group"].nunique(), 1)
+            self.assertEqual(len(real_assignments), 6)
+            synthetic_assignments = assignments[assignments.network_type == "synthetic"]
+            self.assertEqual(synthetic_assignments["seed_group"].nunique(), 9)
+            seed_file = pd.read_csv(output / "initial_seed_sets.csv.gz")
+            self.assertEqual(len(seed_file[seed_file.network_type == "real"]), 2)
+            self.assertEqual(len(seed_file[seed_file.network_type == "synthetic"]), 18)
+            self.assertTrue(np.isfinite(network_results["peak_prevalence_mean_across_seed_sets"]).all())
+
     def test_synthetic_dynamics_summary_reports_multiple_graph_level_cis(self):
         with tempfile.TemporaryDirectory() as tmp:
             frame = pd.DataFrame({
@@ -242,7 +413,8 @@ class TestNetworkPipeline(unittest.TestCase):
                         "representation": "UU", "scenario": "absolute", "eta": None, "time": time,
                         "prevalence_mean": .2 + time * .1,
                         "prevalence_ci95_seed_low": .15 + time * .1,
-                        "prevalence_ci95_seed_high": .25 + time * .1, "mean_exposure": .3})
+                        "prevalence_ci95_seed_high": .25 + time * .1, "mean_exposure": .3,
+                        "total_exposure": .6})
             for config in (1, 2):
                 for realization in (1, 2):
                     for time in (0, 1):
@@ -252,7 +424,7 @@ class TestNetworkPipeline(unittest.TestCase):
                             "representation": "UU", "scenario": "absolute", "eta": None, "time": time,
                             "prevalence_mean": .1 * config + .01 * realization + .05 * time,
                             "prevalence_ci95_seed_low": .1, "prevalence_ci95_seed_high": .2,
-                            "mean_exposure": .2})
+                            "mean_exposure": .2, "total_exposure": .4})
             trajectory = Path(tmp) / "trajectories.csv.gz"
             pd.DataFrame(rows).to_csv(trajectory, index=False, compression="gzip")
             output = Path(tmp) / "summaries"
