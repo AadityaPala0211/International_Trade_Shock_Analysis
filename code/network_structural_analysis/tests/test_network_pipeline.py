@@ -10,7 +10,7 @@ from network_structural_analysis.network_builder import dependency_shares, make_
 from network_structural_analysis.thresholding import diagnose_thresholds
 from network_structural_analysis.synthetic import (
     generate_skeleton, _orientation_from_undirected,
-    _calibrate_weighted_adjacency, run_synthetic_ensemble,
+    _calibrate_weighted_adjacency, run_synthetic_ensemble, empirical_calibration,
 )
 from network_structural_analysis.metrics import structural_analysis
 from network_structural_analysis.data_loader import _find_contiguous_numeric_block
@@ -88,6 +88,17 @@ class TestNetworkPipeline(unittest.TestCase):
             A, [.1, .2, .3], totals, 12, empirical_indegree_samples=indegrees)
         self.assertTrue(np.allclose(np.asarray(W.sum(axis=0)).ravel(), sampled))
         self.assertEqual(sampled[0], 0.)
+
+    def test_empirical_reciprocity_is_pooled_by_arc_count(self):
+        calibration = empirical_calibration([
+            {"year": 2019, "representation": "UU", "mean_degree_undirected_projection": 10.0},
+            {"year": 2022, "representation": "UU", "mean_degree_undirected_projection": 12.0},
+            {"year": 2019, "representation": "UD", "reciprocity": 0.2, "edges": 100},
+            {"year": 2022, "representation": "UD", "reciprocity": 0.8, "edges": 300},
+        ])
+        self.assertAlmostEqual(calibration["reference_mean_degree"], 11.0)
+        self.assertAlmostEqual(calibration["reference_reciprocity"], 0.65)
+        self.assertEqual(calibration["reciprocity_calibration_arc_counts"], {"2019": 100, "2022": 300})
 
     def test_orientation_reciprocity_calibration(self):
         graph = nx.gnp_random_graph(500, .04, seed=12)

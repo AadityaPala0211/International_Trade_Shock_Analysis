@@ -18,12 +18,22 @@ def empirical_calibration(empirical_summaries):
     if not uu or not ud:
         raise ValueError("Empirical calibration needs both UU and UD summaries for 2019 and 2022.")
     mean_degree = float(np.mean([x["mean_degree_undirected_projection"] for x in uu]))
-    reciprocity_values = [float(x["reciprocity"]) for x in ud if np.isfinite(float(x["reciprocity"]))]
-    if not reciprocity_values:
+    valid_ud = [
+        x for x in ud
+        if np.isfinite(float(x.get("reciprocity", np.nan))) and int(x.get("edges", 0)) > 0
+    ]
+    if not valid_ud:
         raise ValueError("Could not derive empirical directed reciprocity.")
+    total_arcs = sum(int(x["edges"]) for x in valid_ud)
+    mutual_arcs = sum(float(x["reciprocity"]) * int(x["edges"]) for x in valid_ud)
+    pooled_reciprocity = mutual_arcs / total_arcs if total_arcs else 0.0
     return {
         "reference_mean_degree": mean_degree,
-        "reference_reciprocity": float(np.clip(np.mean(reciprocity_values), 0.0, 1.0)),
+        "reference_reciprocity": float(np.clip(pooled_reciprocity, 0.0, 1.0)),
+        "reciprocity_pooling": "total_mutual_directed_arcs / total_directed_arcs across empirical years",
+        "reciprocity_calibration_arc_counts": {
+            str(x.get("year", "unknown")): int(x["edges"]) for x in valid_ud
+        },
         "calibration_years": [2019, 2022],
     }
 
