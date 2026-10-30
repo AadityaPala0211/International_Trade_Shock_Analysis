@@ -15,7 +15,7 @@ from network_structural_analysis.synthetic import (
 from network_structural_analysis.metrics import structural_analysis
 from network_structural_analysis.data_loader import _find_contiguous_numeric_block
 from network_structural_analysis.provenance import inspect_icio_readme, summarize_icio_provenance
-from network_structural_analysis.dynamics import simulate_sis, critical_beta, build_seed_sets, _write_ensemble_summary
+from network_structural_analysis.dynamics import simulate_sis, critical_beta, build_seed_sets, _write_ensemble_summary, _save_trajectory_summaries_and_plots
 
 
 class TestNetworkPipeline(unittest.TestCase):
@@ -133,6 +133,36 @@ class TestNetworkPipeline(unittest.TestCase):
             self.assertIn("peak_prevalence_ci95_low_across_graph_realizations", summary.columns)
             self.assertIn("long_run_prevalence_mean_across_graph_realizations", summary.columns)
             self.assertIn("extinction_fraction_mean_across_graph_realizations", summary.columns)
+
+    def test_dynamics_trajectory_summaries_and_plots_for_real_and_synthetic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rows = []
+            for year in (2019, 2022):
+                for time in (0, 1):
+                    rows.append({"network_id": f"real_{year}_UU", "network_type": "real",
+                        "year": year, "family": None, "configuration": None, "realization": None,
+                        "representation": "UU", "scenario": "absolute", "eta": None, "time": time,
+                        "prevalence_mean": .2 + time * .1,
+                        "prevalence_ci95_seed_low": .15 + time * .1,
+                        "prevalence_ci95_seed_high": .25 + time * .1, "mean_exposure": .3})
+            for config in (1, 2):
+                for realization in (1, 2):
+                    for time in (0, 1):
+                        rows.append({"network_id": f"syn_ER_{config}_{realization}_UU",
+                            "network_type": "synthetic", "year": None, "family": "ER",
+                            "configuration": config, "realization": realization,
+                            "representation": "UU", "scenario": "absolute", "eta": None, "time": time,
+                            "prevalence_mean": .1 * config + .01 * realization + .05 * time,
+                            "prevalence_ci95_seed_low": .1, "prevalence_ci95_seed_high": .2,
+                            "mean_exposure": .2})
+            trajectory = Path(tmp) / "trajectories.csv.gz"
+            pd.DataFrame(rows).to_csv(trajectory, index=False, compression="gzip")
+            output = Path(tmp) / "summaries"
+            _save_trajectory_summaries_and_plots(trajectory, output)
+            self.assertTrue((output / "real_trajectory_summary.csv.gz").exists())
+            self.assertTrue((output / "synthetic_trajectory_summary.csv.gz").exists())
+            self.assertTrue((output / "plots" / "real" / "trajectory_UU_absolute.png").exists())
+            self.assertTrue((output / "plots" / "synthetic" / "trajectory_ER_UU_absolute.png").exists())
 
     def test_structural_metrics_match_networkx_on_toy_graph(self):
         A = sparse.csr_matrix(np.array([[0, 1, 0], [0, 0, 1], [0, 0, 0]], dtype=np.uint8))

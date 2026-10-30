@@ -125,9 +125,9 @@ Useful dynamics controls include `--max-steps`, `--tolerance`, `--real-seed-sets
 - `empirical_network_manifest.csv`: exact paths to all six empirical matrices.
 - `comparisons/` and `figures/`: year-to-year comparisons and structural plots.
 - `synthetic/matrices/{ER,BA,WS}/config_*/realization_*/{UU,UD,WD}.npz`: all 540 synthetic matrices.
-- `synthetic/node_metrics/` and `synthetic/degree_distributions/`: per-matrix node metrics and degree histograms.
+- `synthetic/node_metrics/` and `synthetic/degree_distributions/`: per-matrix node metrics plus separate in-degree, out-degree and undirected-projection degree distributions.
 - `synthetic/synthetic_network_manifest.csv`: matrix paths and paired realization seeds.
-- `dynamics/{real,synthetic,all}/`: seed-level, network-level, time-series and ensemble summaries for Model A.
+- `dynamics/{real,synthetic,all}/`: seed-level and network-level Model A summaries, per-network trajectories, seed-set/graph-level confidence intervals, aggregated trajectory tables, and plots under `trajectory_summaries/plots/`.
 
 Do not commit generated results or duplicate source CSV files unless intentionally required.
 

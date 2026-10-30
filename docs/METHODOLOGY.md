@@ -112,7 +112,7 @@ The two experiments are:
 
 The initial infected fraction is 1% (rounded up to the nearest node). Twenty independently sampled seed sets are used for the real networks and are matched across 2019/2022; the same sets are also paired across the three real representations. Five independent seed sets are generated per synthetic skeleton and reused unchanged across UU/UD/WD for that realization.
 
-Outputs include prevalence trajectories, mean exposure, peak prevalence, time-to-peak, long-run prevalence, cumulative prevalence, extinction time, convergence, spectral radius and critical transmission. Seed-set uncertainty is reported within each network. Synthetic ensemble confidence intervals are then calculated across the 20 independent graph realizations, keeping the graph-to-graph and within-network seed-set variation separate.
+Outputs include prevalence trajectories, mean exposure, peak prevalence, time-to-peak, long-run prevalence, cumulative prevalence (the discrete sum of prevalence over simulated time steps), extinction time, convergence, spectral radius and critical transmission. Real trajectory plots show the matched 2019/2022 curves with seed-set uncertainty bands. Synthetic trajectory plots compare the three configurations within each family and representation, with confidence bands across independent graph realizations. Seed-set uncertainty is reported within each network. Synthetic ensemble confidence intervals are then calculated across the independent graph realizations, keeping graph-to-graph and within-network seed-set variation separate.
 
 No alternative SIS variants, signed model, Leontief model or additional dynamical hierarchy are included.
 
