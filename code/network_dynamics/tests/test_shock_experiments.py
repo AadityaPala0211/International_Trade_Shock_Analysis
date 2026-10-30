@@ -69,6 +69,7 @@ class ShockExperimentsTests(unittest.TestCase):
         census, _ = run_single_node_census(self.B, .5, .2, node_metrics=base, max_steps=5)
         correlations = centrality_impact_correlations(census)
         self.assertGreater(len(correlations), 0)
+        self.assertIn("p_value_fdr_bh", correlations.columns)
 
     def test_rejects_invalid_probability_and_bad_node_alignment(self):
         with self.assertRaises(ValueError):
