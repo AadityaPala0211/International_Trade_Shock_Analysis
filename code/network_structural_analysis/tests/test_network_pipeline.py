@@ -319,7 +319,8 @@ class TestNetworkPipeline(unittest.TestCase):
                         "representation": "UU", "scenario": "absolute", "eta": None, "time": time,
                         "prevalence_mean": .2 + time * .1,
                         "prevalence_ci95_seed_low": .15 + time * .1,
-                        "prevalence_ci95_seed_high": .25 + time * .1, "mean_exposure": .3})
+                        "prevalence_ci95_seed_high": .25 + time * .1, "mean_exposure": .3,
+                        "total_exposure": .6})
             for config in (1, 2):
                 for realization in (1, 2):
                     for time in (0, 1):
@@ -329,7 +330,7 @@ class TestNetworkPipeline(unittest.TestCase):
                             "representation": "UU", "scenario": "absolute", "eta": None, "time": time,
                             "prevalence_mean": .1 * config + .01 * realization + .05 * time,
                             "prevalence_ci95_seed_low": .1, "prevalence_ci95_seed_high": .2,
-                            "mean_exposure": .2})
+                            "mean_exposure": .2, "total_exposure": .4})
             trajectory = Path(tmp) / "trajectories.csv.gz"
             pd.DataFrame(rows).to_csv(trajectory, index=False, compression="gzip")
             output = Path(tmp) / "summaries"
