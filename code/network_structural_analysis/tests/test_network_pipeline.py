@@ -43,6 +43,12 @@ class TestNetworkPipeline(unittest.TestCase):
         self.assertIn("mean_undirected_degree", pooled.columns)
         self.assertIn("out_degree_q99", diag.columns)
 
+    def test_dependency_share_threshold_rejects_values_outside_unit_interval(self):
+        with self.assertRaises(ValueError):
+            diagnose_thresholds({2019: self.Z, 2022: self.Z}, [1.1])
+        with self.assertRaises(ValueError):
+            make_representations(np.zeros((3, 3)), 1.1)
+
     def test_threshold_manual_selection(self):
         _, _, selection, _ = diagnose_thresholds(
             {2019: self.Z, 2022: self.Z}, [0, .1, .2], selected_threshold=.1)

@@ -176,8 +176,8 @@ def _real_stage(data_dir, out, threshold, expected_nodes, cfg, seed,
     if threshold is None:
         raise ValueError("The real stage requires an explicit --threshold selected after threshold review.")
     threshold = float(threshold)
-    if not np.isfinite(threshold) or threshold < 0:
-        raise ValueError("--threshold must be finite and nonnegative.")
+    if not np.isfinite(threshold) or not 0 <= threshold <= 1:
+        raise ValueError("--threshold must be finite and in [0, 1] because P_ij is a dependency share.")
     loaded = _load_and_align(data_dir, expected_nodes)
     Zs = {year: loaded[year]["Z"] for year in YEARS}
     diagnostics, pooled, selection, shares_by_year = diagnose_thresholds(

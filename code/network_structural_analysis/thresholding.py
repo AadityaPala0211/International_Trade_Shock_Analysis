@@ -64,8 +64,8 @@ def diagnose_thresholds(year_matrices, candidates, out_dir=None,
     subsequent real-network stage.
     """
     candidates = tuple(sorted(set(float(x) for x in candidates)))
-    if not candidates or any((not np.isfinite(x) or x < 0) for x in candidates):
-        raise ValueError("Threshold candidates must be finite, nonnegative and non-empty.")
+    if not candidates or any((not np.isfinite(x) or x < 0 or x > 1) for x in candidates):
+        raise ValueError("Threshold candidates must be finite, non-empty values in [0, 1].")
 
     records, shares_by_year = [], {}
     for year, Z in year_matrices.items():
@@ -111,8 +111,8 @@ def diagnose_thresholds(year_matrices, candidates, out_dir=None,
                           "the real stage with --threshold set to the analyst-selected common value.")
     else:
         selected_threshold = float(selected_threshold)
-        if not np.isfinite(selected_threshold) or selected_threshold < 0:
-            raise ValueError("selected_threshold must be finite and nonnegative.")
+        if not np.isfinite(selected_threshold) or not 0 <= selected_threshold <= 1:
+            raise ValueError("selected_threshold must be finite and in [0, 1].")
         local = sorted(set((max(0.0, selected_threshold / local_sensitivity_factor),
                             selected_threshold,
                             min(1.0, selected_threshold * local_sensitivity_factor))))

@@ -20,7 +20,8 @@ def dependency_shares(Z: np.ndarray):
 
 def make_representations(S: np.ndarray,tau: float):
     """Create UU, UD and WD with supplier rows -> buyer columns."""
-    if tau<0: raise ValueError("tau must be nonnegative")
+    if not np.isfinite(float(tau)) or not 0 <= float(tau) <= 1:
+        raise ValueError("dependency-share threshold tau must be finite and in [0, 1]")
     mask=(S>=tau)&(S>0)
     np.fill_diagonal(mask,False)
     row,col=np.nonzero(mask)
