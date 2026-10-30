@@ -1,0 +1,7 @@
+network_id,network_type,year,representation,n_nodes,matrix_path
+real_2019_UU,real,2019,UU,4050,empirical/2019/UU/adjacency.npz
+real_2019_UD,real,2019,UD,4050,empirical/2019/UD/adjacency.npz
+real_2019_WD,real,2019,WD,4050,empirical/2019/WD/adjacency.npz
+real_2022_UU,real,2022,UU,4050,empirical/2022/UU/adjacency.npz
+real_2022_UD,real,2022,UD,4050,empirical/2022/UD/adjacency.npz
+real_2022_WD,real,2022,WD,4050,empirical/2022/WD/adjacency.npz

@@ -1,0 +1,1411 @@
+{
+  "available": true,
+  "path": "data\\ReadMe_ICIO_small.xlsx",
+  "sheet_names": [
+    "ReadMe",
+    "Structure",
+    "Area_Activities",
+    "RowItems",
+    "ColItems"
+  ],
+  "properties": {
+    "title": null,
+    "subject": null,
+    "creator": null,
+    "description": null,
+    "created": "2017-04-03 13:26:09",
+    "modified": "2026-01-14 09:19:16"
+  },
+  "sheets": [
+    {
+      "name": "ReadMe",
+      "max_row": 16,
+      "max_column": 11,
+      "preview": [
+        [
+          null,
+          "OECD, Inter-Country Input-Output (ICIO) Tables",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "2025 edition"
+        ],
+        [
+          null,
+          "ICIO web page:",
+          "https://oe.cd/icio",
+          null,
+          "https://www.oecd.org/en/data/datasets/inter-country-input-output-tables.html",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          "Page web TIES:",
+          null,
+          null,
+          "https://www.oecd.org/en/data/datasets/inter-country-input-output-tables.html",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          "Suggestions or queries can be sent to icio-tiva.contact@oecd.org, mentioning ICIO in the title of your message.",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          "When using this database, please cite as \"OECD. (2025) OECD Inter-Country Input-Output Tables, https://oe.cd/icio\"",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "Data are expressed in current USD, million",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "Structure",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "Reference area & economic activities",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "Items in row",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "Items in column",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    },
+    {
+      "name": "Structure",
+      "max_row": 37,
+      "max_column": 30,
+      "preview": [
+        [
+          null,
+          "OECD, Inter-Country Input-Output (ICIO) Tables: Structure",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          "Intermediate use",
+          null,
+          null,
+          null,
+          null,
+          "Final Demand",
+          null,
+          null
+        ],
+        [
+          null,
+          "current million USD",
+          null,
+          null,
+          "country 1",
+          "country 2",
+          "[\u2026]",
+          "country 81",
+          null,
+          "country 1",
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          "ind 1 \u2026 ind 50\n",
+          "ind 1 \u2026 ind 50\n",
+          null,
+          "ind 1 \u2026 ind 50\n",
+          null,
+          "HFCE",
+          "NPISH",
+          "GGFC"
+        ],
+        [
+          null,
+          "country 1",
+          "industry 1",
+          null,
+          "(Z)",
+          null,
+          null,
+          null,
+          null,
+          "(FD)",
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "industry 50",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          "country 2",
+          "industry 1",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "industry 50",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          "[\u2026]",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          "country 81",
+          "industry 1",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "industry 50",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          "Taxes less subsidies on intermediate and final products\n",
+          null,
+          null,
+          "(TLS)",
+          null,
+          null,
+          null,
+          null,
+          "[TLS]",
+          null,
+          null
+        ],
+        [
+          null,
+          "Value added at basic prices",
+          null,
+          null,
+          "(VA)",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          "Output at basic prices",
+          null,
+          null,
+          "(X)",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "One year per CSV file",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "Description",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "Z",
+          "Intermediate use at basic prices",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "TLS",
+          "Taxes less subsidies on intermediate and final products ",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "VA",
+          "Value added at basic prices",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "X",
+          "Output at basic prices",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      ]
+    },
+    {
+      "name": "Area_Activities",
+      "max_row": 102,
+      "max_column": 12,
+      "preview": [
+        [
+          null,
+          "OECD, Inter-Country Input-Output (ICIO) Tables: Areas and Economic Activities",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "2025 edition"
+        ],
+        [
+          null,
+          "V1",
+          "Code",
+          "Country",
+          "Column1",
+          "Code2",
+          "Country2",
+          null,
+          "V1",
+          "Code",
+          "Industry",
+          "ISIC Rev.4"
+        ],
+        [
+          null,
+          "1",
+          "AGO",
+          "Angola",
+          "41",
+          "JOR",
+          "Jordan",
+          null,
+          "1",
+          "A01",
+          "Agriculture and hunting",
+          "01"
+        ],
+        [
+          null,
+          "2",
+          "ARE",
+          "United Arab Emirates",
+          "42",
+          "JPN",
+          "Japan",
+          null,
+          "2",
+          "A02",
+          "Forestry and logging",
+          "02"
+        ],
+        [
+          null,
+          "3",
+          "ARG",
+          "Argentina",
+          "43",
+          "KAZ",
+          "Kazakhstan",
+          null,
+          "3",
+          "A03",
+          "Fishing and aquaculture",
+          "03"
+        ],
+        [
+          null,
+          "4",
+          "AUS",
+          "Australia",
+          "44",
+          "KHM",
+          "Cambodia",
+          null,
+          "4",
+          "B05",
+          "Mining of coal and lignite",
+          "05"
+        ],
+        [
+          null,
+          "5",
+          "AUT",
+          "Austria",
+          "45",
+          "KOR",
+          "Korea",
+          null,
+          "5",
+          "B06",
+          "Extraction of crude petroleum and natural gas",
+          "06"
+        ],
+        [
+          null,
+          "6",
+          "BEL",
+          "Belgium",
+          "46",
+          "LAO",
+          "Lao (People's Democratic Republic)",
+          null,
+          "6",
+          "B07",
+          "Mining of metal ores",
+          "07"
+        ],
+        [
+          null,
+          "7",
+          "BGD",
+          "Bangladesh",
+          "47",
+          "LTU",
+          "Lithuania",
+          null,
+          "7",
+          "B08",
+          "Other mining and quarrying",
+          "08"
+        ],
+        [
+          null,
+          "8",
+          "BGR",
+          "Bulgaria",
+          "48",
+          "LUX",
+          "Luxembourg",
+          null,
+          "8",
+          "B09",
+          "Mining support service activities",
+          "09"
+        ],
+        [
+          null,
+          "9",
+          "BLR",
+          "Belarus",
+          "49",
+          "LVA",
+          "Latvia",
+          null,
+          "9",
+          "C10T12",
+          "Manufacture of food products; beverages and tobacco products",
+          "10, 11, 12"
+        ],
+        [
+          null,
+          "10",
+          "BRA",
+          "Brazil",
+          "50",
+          "MAR",
+          "Morocco",
+          null,
+          "10",
+          "C13T15",
+          "Manufacture of textiles, wearing apparel, leather and related products",
+          "13, 14, 15"
+        ],
+        [
+          null,
+          "11",
+          "BRN",
+          "Brunei Darussalam",
+          "51",
+          "MEX",
+          "Mexico",
+          null,
+          "11",
+          "C16",
+          "Manufacture of wood and of products of wood and cork",
+          "16"
+        ],
+        [
+          null,
+          "12",
+          "CAN",
+          "Canada",
+          "52",
+          "MLT",
+          "Malta",
+          null,
+          "12",
+          "C17_18",
+          "Manufacture of paper and paper products; Printing and reproduction of recorded media",
+          "17, 18"
+        ],
+        [
+          null,
+          "13",
+          "CHE",
+          "Switzerland",
+          "53",
+          "MMR",
+          "Myanmar",
+          null,
+          "13",
+          "C19",
+          "Manufacture of coke and refined petroleum products",
+          "19"
+        ],
+        [
+          null,
+          "14",
+          "CHL",
+          "Chile",
+          "54",
+          "MYS",
+          "Malaysia",
+          null,
+          "14",
+          "C20",
+          "Manufacture of chemicals and chemical products",
+          "20"
+        ],
+        [
+          null,
+          "15",
+          "CHN",
+          "China, People's Republic of",
+          "55",
+          "NGA",
+          "Nigeria",
+          null,
+          "15",
+          "C21",
+          "Manufacture of basic pharmaceutical products and pharmaceutical preparations",
+          "21"
+        ],
+        [
+          null,
+          "16",
+          "CIV",
+          "C\u00f4te d'Ivoire",
+          "56",
+          "NLD",
+          "Netherlands",
+          null,
+          "16",
+          "C22",
+          "Manufacture of rubber and plastic products",
+          "22"
+        ],
+        [
+          null,
+          "17",
+          "CMR",
+          "Cameroon",
+          "57",
+          "NOR",
+          "Norway",
+          null,
+          "17",
+          "C23",
+          "Manufacture of other non-metallic mineral products",
+          "23"
+        ],
+        [
+          null,
+          "18",
+          "COD",
+          "Democratic Republic of the Congo",
+          "58",
+          "NZL",
+          "New Zealand",
+          null,
+          "18",
+          "C24A",
+          "Manufacture of basic iron and steel",
+          "241, 2431"
+        ],
+        [
+          null,
+          "19",
+          "COL",
+          "Colombia",
+          "59",
+          "PAK",
+          "Pakistan",
+          null,
+          "19",
+          "C24B",
+          "Manufacture of basic precious and other non-ferrous metals",
+          "242, 2432"
+        ],
+        [
+          null,
+          "20",
+          "CRI",
+          "Costa Rica",
+          "60",
+          "PER",
+          "Peru",
+          null,
+          "20",
+          "C25",
+          "Manufacture of fabricated metal products",
+          "25"
+        ],
+        [
+          null,
+          "21",
+          "CYP",
+          "Cyprus (1)",
+          "61",
+          "PHL",
+          "Philippines",
+          null,
+          "21",
+          "C26",
+          "Manufacture of computer, electronic and optical products",
+          "26"
+        ],
+        [
+          null,
+          "22",
+          "CZE",
+          "Czechia",
+          "62",
+          "POL",
+          "Poland",
+          null,
+          "22",
+          "C27",
+          "Manufacture of electrical equipment",
+          "27"
+        ],
+        [
+          null,
+          "23",
+          "DEU",
+          "Germany",
+          "63",
+          "PRT",
+          "Portugal",
+          null,
+          "23",
+          "C28",
+          "Manufacture of machinery and equipment n.e.c. ",
+          "28"
+        ],
+        [
+          null,
+          "24",
+          "DNK",
+          "Denmark",
+          "64",
+          "ROU",
+          "Romania",
+          null,
+          "24",
+          "C29",
+          "Manufacture of motor vehicles, trailers and semi-trailers",
+          "29"
+        ],
+        [
+          null,
+          "25",
+          "EGY",
+          "Egypt",
+          "65",
+          "RUS",
+          "Russian Federation",
+          null,
+          "25",
+          "C301",
+          "Building of ships and boats",
+          "301"
+        ],
+        [
+          null,
+          "26",
+          "ESP",
+          "Spain",
+          "66",
+          "SAU",
+          "Saudi Arabia",
+          null,
+          "26",
+          "C302T309",
+          "Manufacture of other transport equipment",
+          "302 to 309"
+        ],
+        [
+          null,
+          "27",
+          "EST",
+          "Estonia",
+          "67",
+          "SEN",
+          "Senegal",
+          null,
+          "27",
+          "C31T33",
+          "Manufacture of furniture; other manufacturing; repair and installation of machinery and equipment",
+          "31, 32, 33"
+        ]
+      ]
+    },
+    {
+      "name": "RowItems",
+      "max_row": 4058,
+      "max_column": 5,
+      "preview": [
+        [
+          null,
+          "OECD, Inter-Country Input-Output (ICIO) Tables: Items in rows",
+          null,
+          null,
+          "2025 edition"
+        ],
+        [
+          null,
+          "ID",
+          "Sector code",
+          "Country",
+          "Industry/Final demand"
+        ],
+        [
+          null,
+          "1",
+          "AGO_A01",
+          "AGO",
+          "A01"
+        ],
+        [
+          null,
+          "2",
+          "AGO_A02",
+          "AGO",
+          "A02"
+        ],
+        [
+          null,
+          "3",
+          "AGO_A03",
+          "AGO",
+          "A03"
+        ],
+        [
+          null,
+          "4",
+          "AGO_B05",
+          "AGO",
+          "B05"
+        ],
+        [
+          null,
+          "5",
+          "AGO_B06",
+          "AGO",
+          "B06"
+        ],
+        [
+          null,
+          "6",
+          "AGO_B07",
+          "AGO",
+          "B07"
+        ],
+        [
+          null,
+          "7",
+          "AGO_B08",
+          "AGO",
+          "B08"
+        ],
+        [
+          null,
+          "8",
+          "AGO_B09",
+          "AGO",
+          "B09"
+        ],
+        [
+          null,
+          "9",
+          "AGO_C10T12",
+          "AGO",
+          "C10T12"
+        ],
+        [
+          null,
+          "10",
+          "AGO_C13T15",
+          "AGO",
+          "C13T15"
+        ],
+        [
+          null,
+          "11",
+          "AGO_C16",
+          "AGO",
+          "C16"
+        ],
+        [
+          null,
+          "12",
+          "AGO_C17_18",
+          "AGO",
+          "C17_18"
+        ],
+        [
+          null,
+          "13",
+          "AGO_C19",
+          "AGO",
+          "C19"
+        ],
+        [
+          null,
+          "14",
+          "AGO_C20",
+          "AGO",
+          "C20"
+        ],
+        [
+          null,
+          "15",
+          "AGO_C21",
+          "AGO",
+          "C21"
+        ],
+        [
+          null,
+          "16",
+          "AGO_C22",
+          "AGO",
+          "C22"
+        ],
+        [
+          null,
+          "17",
+          "AGO_C23",
+          "AGO",
+          "C23"
+        ],
+        [
+          null,
+          "18",
+          "AGO_C24A",
+          "AGO",
+          "C24A"
+        ],
+        [
+          null,
+          "19",
+          "AGO_C24B",
+          "AGO",
+          "C24B"
+        ],
+        [
+          null,
+          "20",
+          "AGO_C25",
+          "AGO",
+          "C25"
+        ],
+        [
+          null,
+          "21",
+          "AGO_C26",
+          "AGO",
+          "C26"
+        ],
+        [
+          null,
+          "22",
+          "AGO_C27",
+          "AGO",
+          "C27"
+        ],
+        [
+          null,
+          "23",
+          "AGO_C28",
+          "AGO",
+          "C28"
+        ],
+        [
+          null,
+          "24",
+          "AGO_C29",
+          "AGO",
+          "C29"
+        ],
+        [
+          null,
+          "25",
+          "AGO_C301",
+          "AGO",
+          "C301"
+        ],
+        [
+          null,
+          "26",
+          "AGO_C302T309",
+          "AGO",
+          "C302T309"
+        ],
+        [
+          null,
+          "27",
+          "AGO_C31T33",
+          "AGO",
+          "C31T33"
+        ]
+      ]
+    },
+    {
+      "name": "ColItems",
+      "max_row": 4548,
+      "max_column": 5,
+      "preview": [
+        [
+          null,
+          "OECD, Inter-Country Input-Output (ICIO) Tables: Items in columns",
+          null,
+          null,
+          "2025 edition"
+        ],
+        [
+          null,
+          "ID",
+          "Sector code",
+          "Country",
+          "Industry/Final demand"
+        ],
+        [
+          null,
+          "1",
+          "AGO_A01",
+          "AGO",
+          "A01"
+        ],
+        [
+          null,
+          "2",
+          "AGO_A02",
+          "AGO",
+          "A02"
+        ],
+        [
+          null,
+          "3",
+          "AGO_A03",
+          "AGO",
+          "A03"
+        ],
+        [
+          null,
+          "4",
+          "AGO_B05",
+          "AGO",
+          "B05"
+        ],
+        [
+          null,
+          "5",
+          "AGO_B06",
+          "AGO",
+          "B06"
+        ],
+        [
+          null,
+          "6",
+          "AGO_B07",
+          "AGO",
+          "B07"
+        ],
+        [
+          null,
+          "7",
+          "AGO_B08",
+          "AGO",
+          "B08"
+        ],
+        [
+          null,
+          "8",
+          "AGO_B09",
+          "AGO",
+          "B09"
+        ],
+        [
+          null,
+          "9",
+          "AGO_C10T12",
+          "AGO",
+          "C10T12"
+        ],
+        [
+          null,
+          "10",
+          "AGO_C13T15",
+          "AGO",
+          "C13T15"
+        ],
+        [
+          null,
+          "11",
+          "AGO_C16",
+          "AGO",
+          "C16"
+        ],
+        [
+          null,
+          "12",
+          "AGO_C17_18",
+          "AGO",
+          "C17_18"
+        ],
+        [
+          null,
+          "13",
+          "AGO_C19",
+          "AGO",
+          "C19"
+        ],
+        [
+          null,
+          "14",
+          "AGO_C20",
+          "AGO",
+          "C20"
+        ],
+        [
+          null,
+          "15",
+          "AGO_C21",
+          "AGO",
+          "C21"
+        ],
+        [
+          null,
+          "16",
+          "AGO_C22",
+          "AGO",
+          "C22"
+        ],
+        [
+          null,
+          "17",
+          "AGO_C23",
+          "AGO",
+          "C23"
+        ],
+        [
+          null,
+          "18",
+          "AGO_C24A",
+          "AGO",
+          "C24A"
+        ],
+        [
+          null,
+          "19",
+          "AGO_C24B",
+          "AGO",
+          "C24B"
+        ],
+        [
+          null,
+          "20",
+          "AGO_C25",
+          "AGO",
+          "C25"
+        ],
+        [
+          null,
+          "21",
+          "AGO_C26",
+          "AGO",
+          "C26"
+        ],
+        [
+          null,
+          "22",
+          "AGO_C27",
+          "AGO",
+          "C27"
+        ],
+        [
+          null,
+          "23",
+          "AGO_C28",
+          "AGO",
+          "C28"
+        ],
+        [
+          null,
+          "24",
+          "AGO_C29",
+          "AGO",
+          "C29"
+        ],
+        [
+          null,
+          "25",
+          "AGO_C301",
+          "AGO",
+          "C301"
+        ],
+        [
+          null,
+          "26",
+          "AGO_C302T309",
+          "AGO",
+          "C302T309"
+        ],
+        [
+          null,
+          "27",
+          "AGO_C31T33",
+          "AGO",
+          "C31T33"
+        ]
+      ]
+    }
+  ],
+  "whole_workbook_scan": {
+    "completed": true,
+    "nonempty_cells_scanned": 34932,
+    "keyword_evidence_cells_returned": 25,
+    "keyword_evidence_truncated": false,
+    "keyword_evidence": [
+      {
+        "sheet": "ReadMe",
+        "cell": "B2",
+        "value": "OECD, Inter-Country Input-Output (ICIO) Tables"
+      },
+      {
+        "sheet": "ReadMe",
+        "cell": "K2",
+        "value": "2025 edition"
+      },
+      {
+        "sheet": "ReadMe",
+        "cell": "B4",
+        "value": "ICIO web page:"
+      },
+      {
+        "sheet": "ReadMe",
+        "cell": "C4",
+        "value": "https://oe.cd/icio"
+      },
+      {
+        "sheet": "ReadMe",
+        "cell": "E4",
+        "value": "https://www.oecd.org/en/data/datasets/inter-country-input-output-tables.html"
+      },
+      {
+        "sheet": "ReadMe",
+        "cell": "E5",
+        "value": "https://www.oecd.org/en/data/datasets/inter-country-input-output-tables.html"
+      },
+      {
+        "sheet": "ReadMe",
+        "cell": "B7",
+        "value": "Suggestions or queries can be sent to icio-tiva.contact@oecd.org, mentioning ICIO in the title of your message."
+      },
+      {
+        "sheet": "ReadMe",
+        "cell": "B9",
+        "value": "When using this database, please cite as \"OECD. (2025) OECD Inter-Country Input-Output Tables, https://oe.cd/icio\""
+      },
+      {
+        "sheet": "Structure",
+        "cell": "B1",
+        "value": "OECD, Inter-Country Input-Output (ICIO) Tables: Structure"
+      },
+      {
+        "sheet": "Structure",
+        "cell": "Z1",
+        "value": "2025 edition"
+      },
+      {
+        "sheet": "Area_Activities",
+        "cell": "B1",
+        "value": "OECD, Inter-Country Input-Output (ICIO) Tables: Areas and Economic Activities"
+      },
+      {
+        "sheet": "Area_Activities",
+        "cell": "L1",
+        "value": "2025 edition"
+      },
+      {
+        "sheet": "Area_Activities",
+        "cell": "B46",
+        "value": "Data are presented for 80 economies (i.e. 38 OECD countries and 42 non-OECD economies) and the Rest of the World.\nIn the data files, country x industry = NA means the information is not available for the observed combination."
+      },
+      {
+        "sheet": "Area_Activities",
+        "cell": "B51",
+        "value": "(1). Footnote by T\u00fcrkiye:  The information in this document with reference to \u201cCyprus\u201d relates to the southern part of the Island. There is no single authority representing both Turkish and Greek Cypriot people on the Island. T\u00fcrkiye recognizes the Turkish Republic of Northern Cyprus (TRNC). Until a lasting and equitable solution is found within the context of the United Nations, T\u00fcrkiye shall preserve its position concerning the \u201cCyprus issue\u201d.  Footnote by all the European Union Member States of the OECD and the European Union: The Republic of Cyprus is recognised by all members of the United Nations with the exception of T\u00fcrkiye. The information in this document relates to the area under the effective control of the Government of the Republic of Cyprus."
+      },
+      {
+        "sheet": "Area_Activities",
+        "cell": "B56",
+        "value": "(2). The statistical data for Israel are supplied by and under the responsibility of the relevant Israeli authorities or third party. The use of such data by the OECD is without prejudice to the status of the Golan Heights, East Jerusalem and Israeli settlements in the West Bank under the terms of international law."
+      },
+      {
+        "sheet": "RowItems",
+        "cell": "B1",
+        "value": "OECD, Inter-Country Input-Output (ICIO) Tables: Items in rows"
+      },
+      {
+        "sheet": "RowItems",
+        "cell": "E1",
+        "value": "2025 edition"
+      },
+      {
+        "sheet": "RowItems",
+        "cell": "B2022",
+        "value": "2019"
+      },
+      {
+        "sheet": "RowItems",
+        "cell": "B2025",
+        "value": "2022"
+      },
+      {
+        "sheet": "RowItems",
+        "cell": "B2028",
+        "value": "2025"
+      },
+      {
+        "sheet": "ColItems",
+        "cell": "B1",
+        "value": "OECD, Inter-Country Input-Output (ICIO) Tables: Items in columns"
+      },
+      {
+        "sheet": "ColItems",
+        "cell": "E1",
+        "value": "2025 edition"
+      },
+      {
+        "sheet": "ColItems",
+        "cell": "B2022",
+        "value": "2019"
+      },
+      {
+        "sheet": "ColItems",
+        "cell": "B2025",
+        "value": "2022"
+      },
+      {
+        "sheet": "ColItems",
+        "cell": "B2028",
+        "value": "2025"
+      }
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "local_companion_workbook_status": "companion_workbook_mentions_oecd_icio_2025",
+  "companion_workbook_mentions_oecd": true,
+  "companion_workbook_mentions_icio": true,
+  "companion_workbook_mentions_2025": true,
+  "workbook_whole_scan_completed": true,
+  "csv_file_checksums_and_dimensions": [
+    {
+      "path": "data\\2019_SML.csv",
+      "sha256": "85bd13fd8c2385c41d239d2ddc973ced1caa87c59c2b90b7bed3ff97048043d8",
+      "shape": [
+        4050,
+        4050
+      ],
+      "node_count": 4050
+    },
+    {
+      "path": "data\\2022_SML.csv",
+      "sha256": "fbab8fd2727bda9fd8c6cfee8227816db82d33bef6aa4b90194ca5dcbc5ad14b",
+      "shape": [
+        4050,
+        4050
+      ],
+      "node_count": 4050
+    }
+  ],
+  "what_is_verified_locally": "The selected CSV files were parsed, their dimensions and SHA-256 checksums recorded, and their detailed node universes were aligned.",
+  "what_is_not_independently_proven": "Even a full companion-workbook scan cannot by itself prove which OECD download archive each individual CSV came from. Retain the original OECD download URL/archive or source manifest for file-level provenance.",
+  "official_oecd_reference": "https://www.oecd.org/en/data/datasets/inter-country-input-output-tables.html",
+  "official_reference_context": "The OECD ICIO dataset page lists a 2025 regular ICIO release covering 1995-2022. This supports using 2019 and 2022 from that release in principle, but does not independently identify the provenance of these local CSV files."
+}

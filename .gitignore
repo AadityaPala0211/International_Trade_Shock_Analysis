@@ -3,9 +3,9 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
-results_network_analysis/
-results_*/
-*.npz
-*.npy
+# results_network_analysis/
+# results_*/
+# *.npz
+# *.npy
 *.parquet
 .DS_Store

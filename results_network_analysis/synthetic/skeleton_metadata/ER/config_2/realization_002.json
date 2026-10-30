@@ -1,0 +1,18 @@
+{
+  "family": "ER",
+  "configuration": 2,
+  "level": 2,
+  "realization": 2,
+  "node_count": 4050,
+  "graph_seed": 1632147576,
+  "orientation_seed": 1508810599,
+  "weight_seed": 228082323,
+  "empirical_reciprocity_target": 0.2806140939068565,
+  "params": {
+    "target_mean_degree": 121.24493827160494,
+    "p": 0.029944415478292154
+  },
+  "paired_design": "One undirected skeleton is transformed into UU, UD and WD.",
+  "weight_calibration": "Empirical retained buyer totals sampled conditionally on synthetic buyer in-degree, with nearest-degree fallback only if an exact degree is absent.",
+  "synthetic_weights_are_monetary_flows": false
+}

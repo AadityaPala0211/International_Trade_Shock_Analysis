@@ -1,0 +1,136 @@
+{
+  "years": [
+    2019,
+    2022
+  ],
+  "node_count": 4050,
+  "threshold": 0.001,
+  "threshold_status": "analyst_selected",
+  "seed": 20261030,
+  "realizations_per_synthetic_configuration": 20,
+  "analysis_config": {
+    "expected_nodes": 4050,
+    "threshold": {
+      "candidates": [
+        0.0,
+        1e-07,
+        3e-07,
+        1e-06,
+        3e-06,
+        1e-05,
+        3e-05,
+        0.0001,
+        0.0003,
+        0.001,
+        0.003,
+        0.01
+      ],
+      "local_sensitivity_factor": 3.0,
+      "path_sample_sources": 256,
+      "betweenness_k": 64
+    },
+    "synthetic": {
+      "realizations": 20,
+      "seed": 20261030,
+      "ws_rewire_probabilities": [
+        0.01,
+        0.1,
+        0.5
+      ],
+      "mean_degree_multipliers": [
+        0.5,
+        1.0,
+        1.5
+      ],
+      "ba_multipliers": [
+        0.5,
+        1.0,
+        1.5
+      ],
+      "weight_distribution_sample_cap": 2000000
+    }
+  },
+  "python": "3.14.0",
+  "numpy": "2.5.4",
+  "pandas": "3.1.0",
+  "scipy": "1.18.1",
+  "networkx": "3.7",
+  "matplotlib": "3.11.2",
+  "inputs": {
+    "2019": {
+      "path": "data\\2019_SML.csv",
+      "sha256": "85bd13fd8c2385c41d239d2ddc973ced1caa87c59c2b90b7bed3ff97048043d8",
+      "shape": [
+        4050,
+        4050
+      ],
+      "raw_shape": [
+        4054,
+        4538
+      ],
+      "block_bounds_zero_based": [
+        1,
+        4051,
+        1,
+        4051
+      ],
+      "total_intermediate_flow": 85055695.4518,
+      "self_flow": 17779344.9218,
+      "reordered_to_2019_label_order": false
+    },
+    "2022": {
+      "path": "data\\2022_SML.csv",
+      "sha256": "fbab8fd2727bda9fd8c6cfee8227816db82d33bef6aa4b90194ca5dcbc5ad14b",
+      "shape": [
+        4050,
+        4050
+      ],
+      "raw_shape": [
+        4054,
+        4538
+      ],
+      "block_bounds_zero_based": [
+        1,
+        4051,
+        1,
+        4051
+      ],
+      "total_intermediate_flow": 103410084.84310001,
+      "self_flow": 22282244.719400004,
+      "reordered_to_2019_label_order": false
+    }
+  },
+  "node_label_sha256": "d96f5168cc6273eb72f88c2d22742a7bdd64a07beed271924535b60100982360",
+  "source_provenance_audit": {
+    "local_companion_workbook_status": "companion_workbook_mentions_oecd_icio_2025",
+    "companion_workbook_mentions_oecd": true,
+    "companion_workbook_mentions_icio": true,
+    "companion_workbook_mentions_2025": true,
+    "workbook_whole_scan_completed": true,
+    "csv_file_checksums_and_dimensions": [
+      {
+        "path": "data\\2019_SML.csv",
+        "sha256": "85bd13fd8c2385c41d239d2ddc973ced1caa87c59c2b90b7bed3ff97048043d8",
+        "shape": [
+          4050,
+          4050
+        ],
+        "node_count": 4050
+      },
+      {
+        "path": "data\\2022_SML.csv",
+        "sha256": "fbab8fd2727bda9fd8c6cfee8227816db82d33bef6aa4b90194ca5dcbc5ad14b",
+        "shape": [
+          4050,
+          4050
+        ],
+        "node_count": 4050
+      }
+    ],
+    "what_is_verified_locally": "The selected CSV files were parsed, their dimensions and SHA-256 checksums recorded, and their detailed node universes were aligned.",
+    "what_is_not_independently_proven": "Even a full companion-workbook scan cannot by itself prove which OECD download archive each individual CSV came from. Retain the original OECD download URL/archive or source manifest for file-level provenance.",
+    "official_oecd_reference": "https://www.oecd.org/en/data/datasets/inter-country-input-output-tables.html",
+    "official_reference_context": "The OECD ICIO dataset page lists a 2025 regular ICIO release covering 1995-2022. This supports using 2019 and 2022 from that release in principle, but does not independently identify the provenance of these local CSV files."
+  },
+  "interpretation": "Structural network analysis; dynamical analysis is a separate stage."
+}

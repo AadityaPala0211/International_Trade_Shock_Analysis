@@ -1,0 +1,21 @@
+{
+  "reference_mean_degree": 121.24493827160494,
+  "reference_reciprocity": 0.2806140939068565,
+  "reciprocity_pooling": "total_mutual_directed_arcs / total_directed_arcs across empirical years",
+  "reciprocity_calibration_arc_counts": {
+    "2019": 277113,
+    "2022": 294070
+  },
+  "calibration_years": [
+    2019,
+    2022
+  ],
+  "threshold": 0.001,
+  "node_count": 4050,
+  "weight_sample_count": 571183,
+  "buyer_total_sample_count": 8100,
+  "buyer_indegree_sample_count": 8100,
+  "weight_distribution_source": "positive dependency shares retained at the selected common threshold in 2019 and 2022",
+  "buyer_total_conditioning": "retained buyer dependency totals paired with each buyer's retained in-degree",
+  "synthetic_weights_are_monetary_flows": false
+}

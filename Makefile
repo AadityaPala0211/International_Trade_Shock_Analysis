@@ -24,7 +24,7 @@ real:
 	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage real --data-dir $(DATA) --out $(OUT) --threshold $(THRESHOLD)
 
 synthetic:
-	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage synthetic --out $(OUT) --realizations 20
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage synthetic --out $(OUT) --realizations 10
 
 dynamics-real:
 	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage dynamics --scope real --out $(OUT) --rho $(RHO) --beta-uu $(BETA_UU) --beta-ud $(BETA_UD) --beta-wd $(BETA_WD)
