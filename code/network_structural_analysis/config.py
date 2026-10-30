@@ -18,7 +18,7 @@ class ThresholdConfig:
 
 @dataclass(frozen=True)
 class SyntheticConfig:
-    realizations: int = 20
+    realizations: int = 1
     seed: int = 20261030
     ws_rewire_probabilities: tuple = (0.01, 0.10, 0.50)
     mean_degree_multipliers: tuple = (0.5, 1.0, 1.5)

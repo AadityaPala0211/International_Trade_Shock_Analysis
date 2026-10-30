@@ -4,9 +4,9 @@
   "level": 1,
   "realization": 1,
   "node_count": 4050,
-  "graph_seed": 388435839,
-  "orientation_seed": 91422648,
-  "weight_seed": 80897296,
+  "graph_seed": 2103234816,
+  "orientation_seed": 210609086,
+  "weight_seed": 542148051,
   "empirical_reciprocity_target": 0.2806140939068565,
   "params": {
     "target_mean_degree": 60.62246913580247,
