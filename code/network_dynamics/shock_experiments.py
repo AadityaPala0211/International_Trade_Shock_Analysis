@@ -391,7 +391,19 @@ def centrality_impact_correlations(census):
                 "spearman_rho": float(rho_s) if np.isfinite(rho_s) else np.nan,
                 "p_value": float(pvalue) if np.isfinite(pvalue) else np.nan,
             })
-    return pd.DataFrame(rows)
+    result = pd.DataFrame(rows)
+    # Benjamini-Hochberg correction across the centrality-by-outcome tests
+    # within this single network/scenario census.
+    pvalues = result["p_value"].to_numpy(dtype=float)
+    valid = np.flatnonzero(np.isfinite(pvalues))
+    qvalues = np.full(len(result), np.nan, dtype=float)
+    if len(valid):
+        order = valid[np.argsort(pvalues[valid], kind="mergesort")]
+        ranked = pvalues[order] * len(order) / np.arange(1, len(order)+1)
+        adjusted = np.minimum.accumulate(ranked[::-1])[::-1]
+        qvalues[order] = np.clip(adjusted, 0.0, 1.0)
+    result["p_value_fdr_bh"] = qvalues
+    return result
 
 
 def write_experiment_outputs(out_dir, census=None, trajectories=None, targeted=None,
