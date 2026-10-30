@@ -1,80 +1,133 @@
-# Network construction and structural-analysis methodology
+# Network construction, structural analysis and SIS shock propagation
 
-## 1. Scope
+## 1. Scope and experimental units
 
-This stage is a structural study of the OECD Inter-Country Input-Output (ICIO) production network for 2019 and 2022. It stops before any temporal shock propagation or dynamics. The unit of analysis is a country-industry production activity, not a firm.
+The empirical data are the OECD Inter-Country Input-Output (ICIO) tables for 2019 and 2022. The intended detailed production-activity node universe is 4,050 country-industry nodes. Each node is an economic activity, not a firm. The pipeline preserves the detailed node universe and rejects unexpected dimensions or incompatible node sets.
 
-The intended detailed node universe contains 4,050 country-industry nodes. The loader validates the requested node count and does not silently aggregate to broad sectors.
+The design comprises six empirical matrices (two years × three representations) and nine synthetic configurations (three each for ER, BA and WS). Twenty independent synthetic realizations are generated per configuration by default. One undirected skeleton is reused to create all three representations. Therefore the final structural design contains 180 skeletons, 540 synthetic representation-specific matrices and 546 matrices overall including empirical networks.
 
 ## 2. ICIO transaction block and direction
 
-Let \`Z\` be the square intermediate-use block. \`Z[i, j]\` is the intermediate transaction from supplier node \`i\` to buyer node \`j\`; graph direction is therefore \`i -> j\`. The package extracts the leading 4,050 × 4,050 intermediate block, with supplier labels in the corresponding row-label column. Final-demand columns and non-intermediate rows outside this block are not graph nodes.
+Let \(Z\) be the square intermediate-use block. \(Z_{ij}\) is the intermediate transaction from supplier node \(i\) to buyer node \(j\); direction is therefore \(i\rightarrow j\). The package extracts the detailed square intermediate block and validates its unique labels. If the header's column labels are a permutation of the row labels, columns are reordered into row-label order. For the two years, a label-set mismatch causes the pipeline to stop; if their labels appear in a different order, both axes of the later-year matrix are explicitly reordered to the canonical 2019 order.
 
-The code stores row/column block coordinates and input SHA-256 checksums. The companion \`ReadMe_ICIO_small.xlsx\`, when present, is inspected into a bounded metadata preview and is not treated as transaction data.
+The companion `ReadMe_ICIO_small.xlsx` is inspected as documentation rather than transaction data. CSV SHA-256 hashes, dimensions, node-order hashes and block coordinates are written to metadata. The OECD's official ICIO dataset page lists a 2025 regular ICIO release for 1995–2022. The local provenance audit distinguishes this official release context from direct file-level proof: a companion readme does not independently prove which archive each individual CSV came from. Original download/archive references should be retained.
 
 ## 3. Dependency-share normalization
 
-For buyer \`j\`, let total intermediate purchases be \`p[j] = sum_k Z[k, j]\`. The off-diagonal dependency share is \`S[i, j] = Z[i, j] / p[j]\` for \`i != j\`, and \`S[j, j] = 0\` in the graph. Self-use remains in \`p[j]\`. This gives each supplier contribution a buyer-specific scale. A share is not a probability of supplier failure and is not a monetary flow.
+For buyer \(j\), total intermediate purchases are:
 
-The total retained share entering buyer \`j\` in a thresholded WD graph can be below one because of self-use and edges removed by the sparsification threshold.
+\[
+p_j=\sum_k Z_{kj}.
+\]
 
-## 4. Three paired representations
+The supplier dependency share is:
 
-A single common dependency-share threshold \`tau\` is applied to both years:
+\[
+P_{ij}=\frac{Z_{ij}}{p_j},\qquad p_j>0.
+\]
 
-- **UU:** one undirected edge \`{i,j}\` exists when either \`S[i,j] >= tau\` or \`S[j,i] >= tau\`. Each undirected edge is stored once in the exported edge list.
-- **UD:** a binary directed edge \`i -> j\` exists when \`S[i,j] >= tau\`.
-- **WD:** the same directed support as UD, with edge weight equal to \`S[i,j]\`.
+The diagonal is set to zero in the graph representation, but self-use remains in \(p_j\). A retained dependency share is not a supplier failure probability and is not a monetary flow. After thresholding, incoming retained WD weights are not renormalized; their sum may be below one due to self-use and removed dependencies.
 
-Diagonal self-links are always excluded. Adjacency matrices retain all 4,050 nodes, including nodes isolated by the selected threshold.
+## 4. Three paired empirical representations and threshold
 
-## 5. Threshold diagnostics
+A common dependency-share threshold \(\tau\) is used for both years:
 
-\`tau\` controls sparsification; it is not an economically observed cutoff. A coarse candidate grid is evaluated separately for 2019 and 2022. For each candidate and year, diagnostics include:
+- **UU:** undirected binary edge \(\{i,j\}\) exists when either \(P_{ij}\geq\tau\) or \(P_{ji}\geq\tau\).
+- **UD:** binary directed edge \(i\rightarrow j\) exists when \(P_{ij}\geq\tau\).
+- **WD:** the same directed support as UD, weighted by \(P_{ij}\).
 
-- retained off-diagonal monetary-flow coverage;
-- retained edge fraction;
-- directed density and reciprocity;
-- giant weak-component fraction;
-- out-degree coefficient of variation.
+Diagonal self-links are excluded. All 4,050 nodes are retained, including isolates.
 
-The common candidate recommendation is deliberately heuristic. It first looks for thresholds preserving at least 90% of off-diagonal flow in both years while keeping mean directed density at or below 20%; among those, it prefers a threshold with a large weak giant component. If no candidate meets those conditions, it selects the candidate closest to 95% flow coverage with a density penalty. The rationale and a local sensitivity table around the selected value are written to disk. A user-supplied threshold overrides the recommendation without deleting diagnostics.
+Thresholding is a network sparsification choice, not an observed economic cutoff. The threshold stage evaluates all candidate values in both years. Diagnostics include retained off-diagonal monetary-flow coverage, edge retention, directed density, mean in/out/undirected-projection degree, degree coefficients of variation, degree-distribution quantiles, reciprocity and giant weak-component fraction. The pipeline plots curves and the flow-coverage/density trade-off.
 
-Inspect the curves before accepting a candidate. The recommendation is not a unique mathematical optimum.
+**No automatic threshold is selected.** The analyst reviews those diagnostics and any elbow in the curves, chooses a common \(\tau\), and supplies it to the real-network stage. The chosen threshold and nearby sensitivity values are then recorded. The same \(\tau\) is used for all real years and representations.
 
-## 6. Synthetic benchmark ensemble
+## 5. Structural analysis
 
-The calibration target for undirected skeletons is the mean degree of the thresholded empirical UU networks averaged across years. Three configurations per family are generated:
+Network metrics include node/edge counts, representation-specific density, mean degree, degree heterogeneity, in/out degree and strength, clustering on the undirected projection, weak/strong component summaries, sampled average path length, directed reciprocity and spectral radius.
 
-- **ER:** target mean degree at 0.75×, 1.00× and 1.25× the empirical reference; \`p = k_target / (N - 1)\`.
-- **BA:** attachment parameter \`m\` is the rounded half of the corresponding target mean degree, bounded to the valid range.
-- **WS:** nearest even neighbourhood degree to the empirical reference is held fixed; rewiring probabilities are 0.01, 0.10 and 0.50.
+Node metrics include in/out degree, undirected-projection degree, in/out strength, PageRank, betweenness, k-core and local clustering. For directed networks, path distances and betweenness retain direction; weak components, clustering and k-core use the undirected projection. Betweenness and characteristic path length use reproducible source samples for large graphs. Per-node outputs are saved for each empirical matrix and each synthetic realization/representation.
 
-Twenty graph realizations are generated per configuration by default, giving 180 independent skeletons. Each skeleton is reused to form three paired representation tracks (UU, UD and WD), giving 540 track instances. The same skeleton is reused so comparisons across representations are paired rather than based on unrelated random graphs.
+## 6. Synthetic benchmark design
 
-To create UD/WD tracks, each undirected skeleton edge is oriented once. Direction is made reciprocal with a probability calibrated so expected arc-level reciprocity matches empirical directed UD reciprocity. WD assigns positive synthetic edge weights sampled from the threshold-retained empirical dependency-share distribution, then rescales incoming weights buyer-by-buyer so their sum follows the empirical distribution of threshold-retained buyer dependency totals. These weights are synthetic dependency-like values, not OECD monetary transactions.
+Let \(k_{ref}\) be the mean of the 2019 and 2022 empirical UU mean degrees.
 
-## 7. Structural measures and definitions
+### ER
 
-Network-level measures include node/edge counts, representation-specific density, degree heterogeneity, weighted in/out strength, clustering on the undirected projection, weak and strong component statistics, sampled shortest-path distances, directed reciprocity and spectral radius.
+The three target expected degrees are \(0.5k_{ref}\), \(k_{ref}\) and \(1.5k_{ref}\). For target \(k_{target}\):
 
-Node-level measures include in/out degree, undirected-projection degree, in/out strength, PageRank, betweenness, k-core and local clustering. WD PageRank uses dependency shares as edge weights. Betweenness is estimated by deterministic sampled Brandes traversals for large networks. K-core and clustering use the undirected projection.
+\[
+p=\frac{k_{target}}{N-1}.
+\]
 
-For 4,050 nodes, betweenness is an approximation based on a reproducible source sample (default 64). Increase \`--betweenness-k\` to improve sampling precision at greater computational cost. Average path length is also source-sampled (default 256) and reports the fraction of sampled ordered pairs reachable. Directed paths retain direction; weak components and clustering explicitly use the undirected projection.
+### BA
 
-Sparse-first implementations are used for PageRank, components, shortest paths, k-core, clustering and Brandes traversal to avoid materialising millions of Python edge objects.
+The BA attachment parameter is derived from the same three target degrees:
 
-## 8. 2019–2022 comparisons
+\[
+m=\operatorname{round}\left(\frac{k_{target}}{2}\right),
+\]
 
-Node metrics are aligned by country-industry label. If the two CSVs contain the same label set in different orders, the 2022 matrix is explicitly reordered to the 2019 label order; different node universes fail the run. The pipeline computes Spearman rank correlations and mean absolute changes for comparable node-level statistics, plus top-node tables for strengths and centrality.
+bounded to the valid interval for a BA graph. The requested target degree and actual \(2m\) approximation are recorded.
 
-Country and industry summaries are grouped from label tokens split at the first underscore. The original node label is preserved in the node-level table; review inferred \`country_code\` and \`industry_code\` fields if the source-label convention changes.
+### WS
+
+The neighbourhood degree \(k\) is the nearest valid even integer to \(k_{ref}\), fixed across configurations. Rewiring probabilities are 0.01, 0.10 and 0.50.
+
+### Paired directed/weighted transforms
+
+For each undirected skeleton, every edge is independently oriented; some dyads are made mutual. The mutual-dyad probability is calibrated so the expected arc-level directed reciprocity matches pooled empirical UD reciprocity. The same orientation is used to make the UD and WD representations.
+
+WD synthetic edge weights are sampled from positive empirical dependency shares retained at the selected threshold. For each synthetic buyer, its target incoming dependency total is sampled from empirical buyers with the same retained in-degree. If that exact degree has no observed samples, the nearest observed positive in-degree is used. Sampled edge values are rescaled buyer-by-buyer to match the sampled target total. This preserves the target buyer-total distribution conditional on in-degree as closely as the empirical sample permits. These values are synthetic dependency strengths, not observed monetary trade flows.
+
+All 540 sparse matrices are saved. Each skeleton has a graph seed, orientation seed, weight seed and parameter record. Every matrix has a manifest entry and saved node-level metrics and degree-frequency table.
+
+## 7. Single dynamical model: Alternate Model A
+
+Only one dynamical model is implemented: the deterministic mass-action/bilinear SIS (NIMFA-style) update:
+
+\[
+d_j(t+1)=\operatorname{clip}_{[0,1]}\left[
+(1-\rho)d_j(t)+(1-d_j(t))\beta\sum_i B_{ij}d_i(t)
+\right],
+\qquad e(t)=B^T d(t).
+\]
+
+Here \(d_j(t)\in[0,1]\) is the infection/shock state of production node \(j\); \(e(t)\) is the vector of incoming exposure. The supplier-to-buyer orientation means the force on buyer \(j\) is \((B^T d)_j\). The same equation is used for every one of the 546 matrices:
+
+- UU: \(B=A_{UU}\), binary undirected adjacency.
+- UD: \(B=A_{UD}\), binary directed supplier-to-buyer adjacency.
+- WD: \(B=P_{WD}\), threshold-retained weighted dependency-share matrix.
+
+The critical transmission is:
+
+\[
+\beta_c=\frac{\rho}{\lambda_{max}(B)}.
+\]
+
+The two experiments are:
+
+1. **Absolute transmission:** a common \(\rho\) and one fixed absolute \(\beta\) per representation, held constant across all networks of that representation. Edge-scale differences between binary and weighted matrices must be acknowledged when interpreting this comparison.
+2. **Threshold-normalized transmission:** \(\eta=\beta/\beta_c\), with \(\eta\in\{0.5,0.9,1.0,1.1,1.5,2.0\}\).
+
+The initial infected fraction is 1% (rounded up to the nearest node). Twenty independently sampled seed sets are used for the real networks and are matched across 2019/2022; the same sets are also paired across the three real representations. Five independent seed sets are generated per synthetic skeleton and reused unchanged across UU/UD/WD for that realization.
+
+Outputs include prevalence trajectories, mean exposure, peak prevalence, time-to-peak, long-run prevalence, cumulative prevalence, extinction time, convergence, spectral radius and critical transmission. Seed-set uncertainty is reported within each network. Synthetic ensemble confidence intervals are then calculated across the 20 independent graph realizations, keeping the graph-to-graph and within-network seed-set variation separate.
+
+No alternative SIS variants, signed model, Leontief model or additional dynamical hierarchy are included.
+
+## 8. 2019–2022 and synthetic comparisons
+
+Node-level empirical metrics are aligned by country-industry label. The package computes Spearman rank correlations and mean absolute changes for comparable node metrics and saves top-node tables. Synthetic comparisons retain family, parameter configuration, realization ID and representation, allowing ER/BA/WS comparisons and paired UU/UD/WD comparisons on the same skeleton.
+
+Country and industry summaries currently group node labels by tokens split at the first underscore. The original labels remain intact in node-level files; the inferred country/industry tokens should be reviewed if the ICIO label convention differs.
 
 ## 9. Interpretation limits
 
-- The annual tables describe input-output structure; they do not observe propagation speed or recovery.
-- A thresholded edge indicates material dependency under the chosen cutoff, not a known outage channel.
-- Structural centrality is a graph statistic, not a direct measure of real-world systemic loss.
-- Synthetic ER/BA/WS networks are null-model references, not forecasts.
+- A country-industry node is a production activity, not a firm.
+- A dependency share measures the fraction of a buyer's intermediate purchases attributed to a supplier; it is not an outage probability.
+- UU removes direction; UD preserves direction without magnitude; WD preserves direction and threshold-retained dependency magnitude.
+- ER/BA/WS networks are null-model benchmarks, not forecasts or replicas of actual trade.
 - Synthetic weights do not recreate actual transactions, production capacity or substitution.
-- This package does not estimate shock dynamics, actual output losses, resilience interventions or causal effects.
+- The SIS process is an abstract comparative propagation model, not a calibrated production-loss model. Its absolute outcomes depend on the chosen \(\beta\), \(\rho\), time horizon and threshold.
+- Centrality, spectral radius and SIS outcomes are network-model quantities; they do not by themselves establish causal economic losses.
