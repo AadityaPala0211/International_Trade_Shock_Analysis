@@ -1,0 +1,32 @@
+name: Network structural analysis
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Run threshold review or the complete structural analysis
+        required: true
+        default: threshold
+        type: choice
+        options: [threshold, full]
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install -r code/network_structural_analysis/requirements.txt
+      - name: Threshold review
+        if: inputs.mode == 'threshold'
+        run: PYTHONPATH=code python -m network_structural_analysis.run_pipeline --data-dir data --out results_network_analysis/threshold_review --threshold-only
+      - name: Full analysis
+        if: inputs.mode == 'full'
+        run: PYTHONPATH=code python -m network_structural_analysis.run_pipeline --data-dir data --out results_network_analysis --realizations 20
+      - uses: actions/upload-artifact@v4
+        with:
+          name: network-structural-analysis-${{ inputs.mode }}
+          path: results_network_analysis/
+          if-no-files-found: error
