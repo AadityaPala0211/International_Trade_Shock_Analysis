@@ -1,7 +1,7 @@
 name: Structural analysis tests
 on:
   push:
-    branches: [main, network-structural-analysis]
+    branches: [main, network-structural-analysis, Structural_analysis]
   pull_request:
     branches: [main]
 jobs:

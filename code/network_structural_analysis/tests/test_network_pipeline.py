@@ -72,6 +72,7 @@ class TestNetworkPipeline(unittest.TestCase):
 
     def test_synthetic_configurations_and_weights(self):
         cfg = SyntheticConfig()
+        self.assertEqual(cfg.realizations, 10)
         self.assertEqual(cfg.mean_degree_multipliers, (.5, 1., 1.5))
         self.assertEqual(cfg.ba_multipliers, (.5, 1., 1.5))
         self.assertEqual(cfg.ws_rewire_probabilities, (.01, .1, .5))
@@ -146,7 +147,7 @@ class TestNetworkPipeline(unittest.TestCase):
                     save_npz(path, matrix)
                     real_rows.append({"network_id": f"real_{year}_{rep}", "year": year,
                         "representation": rep, "n_nodes": n,
-                        "matrix_path": str(path.relative_to(root)).replace("\\\\", "/")})
+                        "matrix_path": path.relative_to(root).as_posix()})
             pd.DataFrame(real_rows).to_csv(root / "empirical_network_manifest.csv", index=False)
             for family in ("ER", "BA", "WS"):
                 for level in (1, 2, 3):
@@ -158,7 +159,7 @@ class TestNetworkPipeline(unittest.TestCase):
                             "network_id": f"syn_{family}_{level}_001_{rep}",
                             "family": family, "configuration": level, "level": level,
                             "realization": 1, "representation": rep,
-                            "matrix_path": str(path.relative_to(root / "synthetic")).replace("\\\\", "/"),
+                            "matrix_path": path.relative_to(root / "synthetic").as_posix(),
                         })
             synthetic_root = root / "synthetic"
             pd.DataFrame(synthetic_rows).to_csv(
