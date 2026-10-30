@@ -174,6 +174,83 @@ class ShockExperimentsTests(unittest.TestCase):
             after = {str(file_path): digest(file_path) for file_path in tracked_files}
             self.assertEqual(before, after)
 
+    def test_synthetic_runner_validates_nine_paired_configurations(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "results"
+            synthetic_root = root / "synthetic"
+            (root / "metadata").mkdir(parents=True)
+            synthetic_root.mkdir(parents=True)
+            pd.DataFrame({"node_id": [0, 1, 2], "node": self.labels}).to_csv(
+                root / "metadata" / "node_index.csv", index=False)
+
+            matrices = {
+                "UU": self.B.maximum(self.B.T).tocsr(),
+                "UD": self.B,
+                "WD": self.B.astype(float) * 0.5,
+            }
+            manifest = []
+            tracked_files = []
+            family_seed = {"ER": 100, "BA": 200, "WS": 300}
+            for family in ("ER", "BA", "WS"):
+                for configuration in (1, 2, 3):
+                    graph_seed = family_seed[family] + configuration
+                    skeleton = f"{family}_{configuration}"
+                    for representation, matrix in matrices.items():
+                        folder = synthetic_root / skeleton / representation
+                        folder.mkdir(parents=True)
+                        matrix_path = folder / "adjacency.npz"
+                        save_npz(matrix_path, matrix)
+                        metrics = pd.DataFrame({
+                            "node_id": [0, 1, 2], "node": self.labels,
+                            "betweenness": [0., 1., 0.],
+                            "k_core": [1, 1, 1], "clustering": [0., 0., 0.],
+                        })
+                        metrics_path = folder / "node_metrics.csv.gz"
+                        metrics.to_csv(metrics_path, index=False, compression="gzip")
+                        tracked_files.extend([matrix_path, metrics_path])
+                        manifest.append({
+                            "network_id": f"syn_{family}_{configuration}_001_{representation}",
+                            "network_type": "synthetic", "family": family,
+                            "configuration": configuration, "realization": 1,
+                            "representation": representation, "graph_seed": graph_seed,
+                            "matrix_path": f"{skeleton}/{representation}/adjacency.npz",
+                            "node_metrics_path": f"{skeleton}/{representation}/node_metrics.csv.gz",
+                        })
+            pd.DataFrame(manifest).to_csv(
+                synthetic_root / "synthetic_network_manifest.csv", index=False)
+
+            def digest(file_path):
+                return hashlib.sha256(file_path.read_bytes()).hexdigest()
+
+            before = {str(file_path): digest(file_path) for file_path in tracked_files}
+            output = root / "dynamics_node_attribution_synthetic_pilot"
+            run_shock_experiments([
+                "--results-dir", str(root), "--out", str(output), "--scope", "synthetic",
+                "--synthetic-realizations", "1", "--rho", "0.2",
+                "--beta-uu", "0.1", "--beta-ud", "0.1", "--beta-wd", "0.1",
+                "--scenarios", "absolute", "--max-steps", "3",
+                "--random-cohorts", "2", "--target-fraction", "0.33",
+                "--census-batch-size", "2",
+            ])
+            result_manifest = pd.read_csv(output / "shock_experiment_manifest.csv")
+            self.assertEqual(len(result_manifest), 27)
+            self.assertTrue((result_manifest.single_node_sources_tested == 3).all())
+            uu = pd.read_csv(
+                output / "syn_ER_1_001_UU" / "absolute" / "targeted_cohort_runs.csv.gz")
+            ud = pd.read_csv(
+                output / "syn_ER_1_001_UD" / "absolute" / "targeted_cohort_runs.csv.gz")
+            uu_random = (
+                uu[uu.cohort == "random"].sort_values(["repeat", "centrality"])
+                .drop_duplicates("repeat").sort_values("repeat")["seed_node_ids"].astype(str).tolist()
+            )
+            ud_random = (
+                ud[ud.cohort == "random"].sort_values(["repeat", "centrality"])
+                .drop_duplicates("repeat").sort_values("repeat")["seed_node_ids"].astype(str).tolist()
+            )
+            self.assertEqual(uu_random, ud_random)
+            after = {str(file_path): digest(file_path) for file_path in tracked_files}
+            self.assertEqual(before, after)
+
 
 if __name__ == "__main__":
     unittest.main()
