@@ -32,6 +32,26 @@ class ShockExperimentsTests(unittest.TestCase):
         self.assertGreater(metrics.loc[2, "pagerank_supplier_to_buyer"],
                            metrics.loc[0, "pagerank_supplier_to_buyer"])
 
+    def test_cumulative_prevalence_uses_common_fixed_horizon(self):
+        empty = sparse.csr_matrix((3, 3), dtype=float)
+        scalar = simulate_model_a(
+            empty, [1., 0., 0.], beta=0., rho=.2,
+            max_steps=5, tolerance=.5)
+        expected = 5 * (.8/3)
+        self.assertTrue(scalar["converged"])
+        self.assertEqual(scalar["steps"], 1)
+        self.assertAlmostEqual(scalar["cumulative_prevalence_observed_until_stop"], .8/3)
+        self.assertAlmostEqual(scalar["cumulative_prevalence"], expected)
+
+        metrics = calculate_targeting_metrics(empty, self.labels)
+        census, trajectories = run_single_node_census(
+            empty, 0., .2, node_metrics=metrics, max_steps=5, tolerance=.5,
+            store_trajectories=True, batch_size=2)
+        self.assertTrue(census.converged.all())
+        self.assertTrue(np.allclose(census.cumulative_prevalence, expected))
+        lengths = trajectories.groupby("source_node_id").size()
+        self.assertTrue((lengths == 6).all())
+
     def test_batched_census_enumerates_every_node_and_matches_scalar(self):
         metrics = calculate_targeting_metrics(self.B, self.labels)
         census, trajectories = run_single_node_census(
@@ -133,6 +153,13 @@ class ShockExperimentsTests(unittest.TestCase):
             self.assertEqual(len(result_manifest), 6)
             self.assertTrue((result_manifest.single_node_sources_tested == 3).all())
             self.assertTrue((output / "top_20_single_node_shocks.csv.gz").is_file())
+            first = pd.read_csv(
+                output / "real_2019_UU" / "absolute" / "targeted_cohort_runs.csv.gz")
+            paired = pd.read_csv(
+                output / "real_2022_WD" / "absolute" / "targeted_cohort_runs.csv.gz")
+            first_random = first[first.cohort == "random"].sort_values("repeat").seed_node_ids.tolist()
+            paired_random = paired[paired.cohort == "random"].sort_values("repeat").seed_node_ids.tolist()
+            self.assertEqual(first_random, paired_random)
             self.assertFalse((output / "empirical").exists())
             after = {str(file_path): digest(file_path) for file_path in tracked_files}
             self.assertEqual(before, after)
