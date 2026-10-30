@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 from pathlib import Path
+import shutil
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -184,8 +185,26 @@ def _save_json(path, payload):
     path.write_text(json.dumps(payload, indent=2, default=lambda x: float(x) if isinstance(x, np.floating) else int(x) if isinstance(x, np.integer) else str(x)))
 
 
+def _reset_synthetic_outputs(out):
+    """Remove only generated synthetic artifacts before a clean reproducible rerun."""
+    out = Path(out)
+    for name in ("matrices", "node_metrics", "degree_distributions", "skeleton_metadata"):
+        path = out / name
+        if path.exists():
+            shutil.rmtree(path)
+    for name in (
+        "synthetic_realization_summaries.csv.gz",
+        "synthetic_network_manifest.csv",
+        "synthetic_configuration_summaries.csv",
+        "synthetic_experiment_design.json",
+    ):
+        path = out / name
+        if path.exists():
+            path.unlink()
+
+
 def run_synthetic_ensemble(n, empirical_mean_degree, empirical_reciprocity,
-                           empirical_share_samples, realizations=20, seed=20261030,
+                           empirical_share_samples, realizations=10, seed=20261030,
                            out_dir=None, empirical_dependency_total_samples=None,
                            empirical_indegree_samples=None,
                            config: SyntheticConfig | None = None,
@@ -196,6 +215,8 @@ def run_synthetic_ensemble(n, empirical_mean_degree, empirical_reciprocity,
     out = Path(out_dir) if out_dir else None
     if out:
         out.mkdir(parents=True, exist_ok=True)
+        # Prevent old/partial realizations from surviving when R is reduced.
+        _reset_synthetic_outputs(out)
         for name in ("matrices", "node_metrics", "degree_distributions", "skeleton_metadata"):
             (out / name).mkdir(parents=True, exist_ok=True)
 
@@ -298,6 +319,20 @@ def run_synthetic_ensemble(n, empirical_mean_degree, empirical_reciprocity,
     if out:
         summaries.to_csv(out / "synthetic_realization_summaries.csv.gz", index=False, compression="gzip")
         manifest = pd.DataFrame(manifest_rows)
+        expected_manifest_rows = 27 * realizations
+        if len(manifest) != expected_manifest_rows:
+            raise RuntimeError(
+                f"Synthetic manifest is incomplete: expected {expected_manifest_rows} rows, "
+                f"found {len(manifest)}."
+            )
+        for column in ("matrix_path", "node_metrics_path", "degree_distribution_path"):
+            missing = [value for value in manifest[column]
+                       if not (out / str(value)).is_file()]
+            if missing:
+                raise RuntimeError(
+                    f"Synthetic output is incomplete: {len(missing)} missing {column} files; "
+                    f"examples={missing[:5]}"
+                )
         manifest.to_csv(out / "synthetic_network_manifest.csv", index=False)
         numeric_metrics = ["mean_degree", "density", "average_clustering_undirected_projection",
                            "giant_component_fraction", "reciprocity",

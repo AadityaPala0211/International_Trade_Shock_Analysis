@@ -15,7 +15,8 @@ from network_structural_analysis.synthetic import (
 from network_structural_analysis.metrics import structural_analysis
 from network_structural_analysis.data_loader import _find_contiguous_numeric_block
 from network_structural_analysis.provenance import inspect_icio_readme, summarize_icio_provenance
-from network_structural_analysis.dynamics import simulate_sis, critical_beta, build_seed_sets, _write_ensemble_summary, _save_trajectory_summaries_and_plots
+from network_structural_analysis.dynamics import simulate_sis, critical_beta, build_seed_sets, _write_ensemble_summary, _save_trajectory_summaries_and_plots, _ci
+from network_structural_analysis.ensemble_validation import validate_network_manifests
 
 
 class TestNetworkPipeline(unittest.TestCase):
@@ -107,6 +108,10 @@ class TestNetworkPipeline(unittest.TestCase):
 
     def test_synthetic_matrices_and_node_metrics_are_persisted(self):
         with tempfile.TemporaryDirectory() as tmp:
+            # A rerun with a smaller R must remove stale files from older attempts.
+            stale_dir = Path(tmp) / "matrices" / "ER" / "config_1" / "realization_999"
+            stale_dir.mkdir(parents=True)
+            (stale_dir / "stale.npz").write_text("stale")
             cfg = SyntheticConfig(realizations=1, seed=8)
             summaries = run_synthetic_ensemble(
                 30, 8., .3, np.array([.1, .2, .3]), realizations=1, seed=8, out_dir=tmp,
@@ -118,6 +123,81 @@ class TestNetworkPipeline(unittest.TestCase):
             self.assertEqual(len(summaries), 27)
             self.assertTrue(all((Path(tmp) / p).exists() for p in manifest.matrix_path))
             self.assertTrue(all((Path(tmp) / p).exists() for p in manifest.node_metrics_path))
+            self.assertFalse(stale_dir.exists())
+            self.assertEqual(len(list((Path(tmp) / "matrices").rglob("*.npz"))), 27)
+
+    def test_reduced_realization_manifests_validate_and_orphans_warn(self):
+        import json
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            n = 4
+            ud = sparse.csr_matrix(np.array([
+                [0, 1, 0, 0], [0, 0, 1, 0], [1, 0, 0, 1], [0, 0, 0, 0]
+            ], dtype=np.uint8))
+            uu = ud.maximum(ud.T).tocsr()
+            wd = ud.astype(float) * 0.2
+            matrices = {"UU": uu, "UD": ud, "WD": wd}
+            real_rows, synthetic_rows = [], []
+            for year in (2019, 2022):
+                for rep, matrix in matrices.items():
+                    path = root / "empirical" / str(year) / rep / "adjacency.npz"
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    from scipy.sparse import save_npz
+                    save_npz(path, matrix)
+                    real_rows.append({"network_id": f"real_{year}_{rep}", "year": year,
+                        "representation": rep, "n_nodes": n,
+                        "matrix_path": str(path.relative_to(root)).replace("\\\\", "/")})
+            pd.DataFrame(real_rows).to_csv(root / "empirical_network_manifest.csv", index=False)
+            for family in ("ER", "BA", "WS"):
+                for level in (1, 2, 3):
+                    for rep, matrix in matrices.items():
+                        path = root / "synthetic" / "matrices" / family / f"config_{level}" / "realization_001" / f"{rep}.npz"
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        save_npz(path, matrix)
+                        synthetic_rows.append({
+                            "network_id": f"syn_{family}_{level}_001_{rep}",
+                            "family": family, "configuration": level, "level": level,
+                            "realization": 1, "representation": rep,
+                            "matrix_path": str(path.relative_to(root / "synthetic")).replace("\\\\", "/"),
+                        })
+            synthetic_root = root / "synthetic"
+            pd.DataFrame(synthetic_rows).to_csv(
+                synthetic_root / "synthetic_network_manifest.csv", index=False)
+            (synthetic_root / "synthetic_experiment_design.json").write_text(json.dumps({
+                "realizations_per_configuration": 1,
+                "independent_skeletons": 9,
+                "paired_representation_matrices": 27,
+            }))
+            metadata = root / "metadata"
+            metadata.mkdir()
+            (metadata / "synthetic_stage_complete.json").write_text(json.dumps({
+                "realization_count_per_configuration": 1,
+                "independent_skeletons": 9,
+                "paired_representation_matrices": 27,
+            }))
+            # A stale, unmanifested matrix is warned about but never consumed.
+            stale = synthetic_root / "matrices" / "ER" / "config_1" / "realization_999" / "stale.npz"
+            stale.parent.mkdir(parents=True)
+            save_npz(stale, ud)
+            report = validate_network_manifests(root, scope="all", expected_nodes=n)
+            self.assertTrue(report["ok"], report["errors"])
+            self.assertEqual(report["empirical_matrix_count"], 6)
+            self.assertEqual(report["synthetic_manifest_rows"], 27)
+            self.assertEqual(report["synthetic_realizations_per_configuration"]["ER_level_1"], 1)
+            self.assertEqual(report["orphan_matrix_files"], 1)
+            self.assertTrue(any("one synthetic realization" in x for x in report["warnings"]))
+            mismatch = validate_network_manifests(
+                root, scope="synthetic", expected_nodes=n, expected_realizations=10)
+            self.assertFalse(mismatch["ok"])
+            self.assertTrue(any("expected-realizations requested 10" in x for x in mismatch["errors"]))
+
+    def test_single_observation_does_not_claim_zero_width_confidence_interval(self):
+        mean, sd, low, high, count = _ci([0.25])
+        self.assertEqual(mean, 0.25)
+        self.assertEqual(count, 1)
+        self.assertTrue(np.isnan(sd))
+        self.assertTrue(np.isnan(low))
+        self.assertTrue(np.isnan(high))
 
     def test_sis_update_threshold_and_seed_sets(self):
         B = sparse.csr_matrix(np.array([[0., 1.], [1., 0.]]))

@@ -26,6 +26,7 @@ from .visualization import (
     plot_metric_comparison, plot_synthetic_comparison,
 )
 from .dynamics import run_dynamics_analysis
+from .ensemble_validation import validate_network_manifests
 
 
 def _json_write(path, obj):
@@ -265,6 +266,10 @@ def _real_stage(data_dir, out, threshold, expected_nodes, cfg, seed,
 
 
 def _synthetic_stage(out, cfg, realizations, seed, path_sample_sources, betweenness_k):
+    completion_path = out / "metadata" / "synthetic_stage_complete.json"
+    completion_path.parent.mkdir(parents=True, exist_ok=True)
+    if completion_path.exists():
+        completion_path.unlink()
     calibration_path = out / "metadata" / "synthetic_calibration.json"
     samples_path = out / "metadata" / "synthetic_calibration_samples.npz"
     if not calibration_path.exists() or not samples_path.exists():
@@ -286,11 +291,22 @@ def _synthetic_stage(out, cfg, realizations, seed, path_sample_sources, betweenn
     for metric in ("mean_degree", "density", "average_clustering_undirected_projection",
                    "giant_component_fraction", "reciprocity"):
         plot_synthetic_comparison(synthetic, out / "figures" / f"synthetic_{metric}.png", metric)
-    _json_write(out / "metadata" / "synthetic_stage_complete.json", {
+    validation = validate_network_manifests(
+        out, scope="synthetic", expected_nodes=int(calibration["node_count"]),
+        expected_realizations=int(realizations),
+    )
+    if not validation["ok"]:
+        raise RuntimeError("Generated synthetic ensemble failed validation: " +
+                           "; ".join(validation["errors"][:5]))
+    _json_write(completion_path, {
         "realization_count_per_configuration": int(realizations),
         "independent_skeletons": 9 * int(realizations),
         "paired_representation_matrices": 27 * int(realizations),
+        "manifest_rows": int(validation["synthetic_manifest_rows"]),
+        "verified_matrices": int(validation["verified_matrix_count"]),
+        "orphan_matrix_files": int(validation["orphan_matrix_files"]),
         "matrices_persisted": True,
+        "validation_passed": True,
         "sis_stage_run": False,
     })
     print(json.dumps({
@@ -316,8 +332,40 @@ def _load_manifest_records(path, base_dir, expected_type):
     return records
 
 
+def _write_dynamics_validation(out, scope, expected_nodes=4050,
+                               expected_realizations=None):
+    report = validate_network_manifests(
+        out, scope=scope, expected_nodes=expected_nodes,
+        expected_realizations=expected_realizations,
+    )
+    destination = out / "dynamics" / f"validation_{scope}"
+    destination.mkdir(parents=True, exist_ok=True)
+    _json_write(destination / "dynamics_input_validation.json", report)
+    pd.DataFrame(report.get("matrix_checks", [])).to_csv(
+        destination / "dynamics_input_precheck.csv", index=False)
+    print(json.dumps({
+        "status": "dynamics_inputs_valid" if report["ok"] else "dynamics_inputs_invalid",
+        "scope": scope,
+        "empirical_matrices": report.get("empirical_matrix_count", 0),
+        "synthetic_matrices": report.get("synthetic_manifest_rows", 0),
+        "synthetic_realizations_per_configuration": report.get(
+            "synthetic_realizations_per_configuration", {}
+        ),
+        "orphan_matrix_files_ignored": report.get("orphan_matrix_files", 0),
+        "warnings": report.get("warnings", []),
+        "errors": report.get("errors", []),
+        "out": str(destination),
+    }, indent=2))
+    return report
+
+
 def _dynamics_stage(out, scope, seed, rho, beta_by_rep, max_steps, tolerance,
-                    real_seed_sets, synthetic_seed_sets, infection_fraction):
+                    real_seed_sets, synthetic_seed_sets, infection_fraction,
+                    expected_nodes=4050):
+    validation = _write_dynamics_validation(out, scope, expected_nodes=expected_nodes)
+    if not validation["ok"]:
+        raise RuntimeError("Dynamics input validation failed; inspect dynamics/validation_" +
+                           scope + "/dynamics_input_validation.json before proceeding.")
     records = []
     if scope in ("real", "all"):
         records.extend(_load_manifest_records(
@@ -347,14 +395,18 @@ def _dynamics_stage(out, scope, seed, rho, beta_by_rep, max_steps, tolerance,
 def run(args=None):
     cfg = PipelineConfig()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stage", choices=("inspect", "threshold", "real", "synthetic", "dynamics"),
+    parser.add_argument("--stage", choices=("inspect", "threshold", "real", "synthetic",
+                                                   "dynamics-validate", "dynamics"),
                         default="threshold")
     parser.add_argument("--data-dir", default="data")
     parser.add_argument("--out", default="results_network_analysis")
     parser.add_argument("--threshold", type=float, default=None,
                         help="Analyst-selected common dependency-share threshold; required for --stage real.")
     parser.add_argument("--expected-nodes", type=int, default=cfg.expected_nodes)
-    parser.add_argument("--realizations", type=int, default=cfg.synthetic.realizations)
+    parser.add_argument("--realizations", type=int, default=cfg.synthetic.realizations,
+                        help="Synthetic graph realizations per configuration (default: 10).")
+    parser.add_argument("--expected-realizations", type=int, default=None,
+                        help="Optional preflight assertion; otherwise the synthetic manifest count is inferred.")
     parser.add_argument("--seed", type=int, default=cfg.synthetic.seed)
     parser.add_argument("--path-sample-sources", type=int, default=cfg.threshold.path_sample_sources)
     parser.add_argument("--betweenness-k", type=int, default=cfg.threshold.betweenness_k)
@@ -388,6 +440,13 @@ def run(args=None):
     elif ns.stage == "synthetic":
         _synthetic_stage(out, cfg, ns.realizations, ns.seed,
                          ns.path_sample_sources, ns.betweenness_k)
+    elif ns.stage == "dynamics-validate":
+        report = _write_dynamics_validation(
+            out, ns.scope, expected_nodes=ns.expected_nodes,
+            expected_realizations=ns.expected_realizations,
+        )
+        if not report["ok"]:
+            raise RuntimeError("Dynamics input validation failed; inspect the saved validation report.")
     elif ns.stage == "dynamics":
         required = {"rho": ns.rho, "beta-uu": ns.beta_uu,
                     "beta-ud": ns.beta_ud, "beta-wd": ns.beta_wd}
@@ -402,7 +461,7 @@ def run(args=None):
             out, ns.scope, ns.seed, ns.rho,
             {"UU": ns.beta_uu, "UD": ns.beta_ud, "WD": ns.beta_wd},
             ns.max_steps, ns.tolerance, ns.real_seed_sets,
-            ns.synthetic_seed_sets, ns.infection_fraction,
+            ns.synthetic_seed_sets, ns.infection_fraction, ns.expected_nodes,
         )
 
 

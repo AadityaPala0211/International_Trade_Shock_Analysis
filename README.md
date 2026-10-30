@@ -14,7 +14,7 @@ The detailed country-industry node universe is expected to contain **4,050 nodes
 
 The transaction convention is fixed: \(Z_{ij}\) is the intermediate flow from supplier \(i\) to buyer \(j\). For buyer \(j\), dependency share is \(P_{ij}=Z_{ij}/\sum_k Z_{kj}\). Self-use remains in the denominator, while diagonal graph edges are excluded. The same manually selected dependency-share threshold \(\tau\) is applied to both empirical years. WD weights are not renormalized after thresholding.
 
-Synthetic design: 3 ER configurations, 3 BA configurations and 3 WS configurations. Each configuration has 20 independent realizations by default (180 undirected skeletons). Each skeleton is transformed into paired UU, UD and WD matrices (540 synthetic matrices). Including the six empirical matrices gives **546 matrices**. Synthetic WD edge weights are dependency-strength-like values calibrated from the empirical networks; they are not real trade flows.
+Synthetic design: 3 ER configurations, 3 BA configurations and 3 WS configurations. Each configuration has **10 independent realizations by default** (90 undirected skeletons; 270 paired synthetic matrices). Including the six empirical matrices gives **276 matrices**. You can choose another positive count with `--realizations`; 20 is preferable when runtime permits, while 1 is only a pilot. Synthetic WD edge weights are dependency-strength-like values calibrated from the empirical networks; they are not real trade flows.
 
 ## Install
 
@@ -74,10 +74,10 @@ This stage creates the six empirical matrices (2019/2022 × UU/UD/WD), edge list
 ### 4. Generate the synthetic networks after approving the real results
 
 ```bash
-python -m network_structural_analysis.run_pipeline --stage synthetic --out results_network_analysis --realizations 20 --seed 20261030
+python -m network_structural_analysis.run_pipeline --stage synthetic --out results_network_analysis --realizations 10 --seed 20261030
 ```
 
-The synthetic stage uses the empirical calibration files saved by step 3; it does not reload or reconstruct the real networks. It creates 180 independent skeletons and persists all 540 paired representation matrices. It also saves node metrics and degree-frequency distributions for each representation of each realization.
+The synthetic stage uses the empirical calibration files saved by step 3; it does not reload or reconstruct the real networks. The default is 10 independent realizations per configuration (90 skeletons and 270 paired matrices). The count is configurable: use `--realizations 5` for a faster exploratory run or `--realizations 20` for the original full design. A fresh synthetic run removes prior generated synthetic matrices/manifests/metrics first, so stale files from an earlier larger run cannot be mistaken for completed realizations. It saves node metrics and degree-frequency distributions for each representation of each realization.
 
 The experiment parameters follow the plan:
 
@@ -87,7 +87,19 @@ The experiment parameters follow the plan:
 - Directed orientation is calibrated to pooled empirical UD reciprocity.
 - WD edge weights are sampled from empirical retained dependency shares. Buyer incoming totals are sampled conditionally on synthetic buyer in-degree; nearest-degree fallback is used only when the exact in-degree is absent.
 
-### 5. Run the single SIS Model A
+### 5. Validate the saved networks before SIS
+
+The preflight infers the realization count from the manifest; it does not insist on 20. It verifies matrix paths, dimensions, nonnegative finite values, zero diagonals, UU symmetry, and the paired support rules (UU is the undirected union of UD; WD support equals UD). It also compares the manifest count with the synthetic experiment-design and completion metadata.
+
+```bash
+python -m network_structural_analysis.run_pipeline --stage dynamics-validate --scope all --out results_network_analysis
+```
+
+Use `--expected-realizations 10` only when you want the preflight to assert that a 10-realization ensemble exists. Orphaned NPZ files are reported as warnings and are not consumed by SIS; rerunning the synthetic stage cleans them.
+
+A single realization is accepted for pilot SIS runs, but between-graph variance and graph-level confidence intervals are undefined. The code reports those confidence limits as unavailable (not zero-width). With 5–9 realizations, graph-level intervals are exploratory; 10 is a practical compromise; 20 is preferred for final inference.
+
+### 6. Run the single SIS Model A
 
 The model stage can be run on real matrices, synthetic matrices or both. It requires explicit absolute \(\beta\) values and common \(\rho\); the values below are examples only and must be justified for the experiment.
 
@@ -124,7 +136,7 @@ Useful dynamics controls include `--max-steps`, `--tolerance`, `--real-seed-sets
 - `empirical/{2019,2022}/{UU,UD,WD}/`: sparse `adjacency.npz`, edge list, node metrics, country/industry summaries and distributions.
 - `empirical_network_manifest.csv`: exact paths to all six empirical matrices.
 - `comparisons/` and `figures/`: year-to-year comparisons and structural plots.
-- `synthetic/matrices/{ER,BA,WS}/config_*/realization_*/{UU,UD,WD}.npz`: all 540 synthetic matrices.
+- `synthetic/matrices/{ER,BA,WS}/config_*/realization_*/{UU,UD,WD}.npz`: all `27 × realizations` synthetic matrices (270 at the recommended default of 10).
 - `synthetic/node_metrics/` and `synthetic/degree_distributions/`: per-matrix node metrics plus separate in-degree, out-degree and undirected-projection degree distributions.
 - `synthetic/synthetic_network_manifest.csv`: matrix paths and paired realization seeds.
 - `dynamics/{real,synthetic,all}/`: seed-level and network-level Model A summaries, per-network trajectories, seed-set/graph-level confidence intervals, aggregated trajectory tables, and plots under `trajectory_summaries/plots/`.
@@ -141,7 +153,7 @@ Network-level outputs include nodes, edges, density, degree statistics, in/out d
 
 ## SIS metrics and uncertainty
 
-Model outputs include prevalence trajectories, mean exposure, peak prevalence, time-to-peak, long-run prevalence, cumulative prevalence, extinction time, convergence, \(\lambda_{max}\) and \(\beta_c\). Seed-set variation is retained within each network. Synthetic graph-to-graph summaries and 95% confidence intervals are computed across independent realizations, separately from within-network seed-set uncertainty.
+Model outputs include prevalence trajectories, mean exposure, peak prevalence, time-to-peak, long-run prevalence, cumulative prevalence, extinction time, convergence, \(\lambda_{max}\) and \(\beta_c\). Seed-set variation is retained within each network. Synthetic graph-to-graph summaries and 95% confidence intervals are computed across independent realizations, separately from within-network seed-set uncertainty. Graph-level confidence intervals are undefined for a single realization and are left blank rather than set to zero width.
 
 ## Tests
 

@@ -83,8 +83,13 @@ def _ci(values):
     if not n:
         return (float("nan"), float("nan"), float("nan"), float("nan"), 0)
     mean = float(values.mean())
-    sd = float(values.std(ddof=1)) if n > 1 else 0.0
-    half = float(student_t.ppf(.975, n - 1) * sd / np.sqrt(n)) if n > 1 else 0.0
+    # A single graph/seed set cannot estimate sampling variance. Keep the mean,
+    # but leave SD and confidence limits undefined rather than reporting a
+    # misleading zero-width interval.
+    if n == 1:
+        return mean, float("nan"), float("nan"), float("nan"), 1
+    sd = float(values.std(ddof=1))
+    half = float(student_t.ppf(.975, n - 1) * sd / np.sqrt(n))
     return mean, sd, mean - half, mean + half, n
 
 
@@ -277,6 +282,15 @@ def run_dynamics_analysis(network_records, out_dir, seed=20261030, rho=0.2,
         "eta_levels": list(ETA_LEVELS), "beta_critical": "rho / lambda_max(B)",
         "infection_fraction": float(infection_fraction), "real_seed_sets": int(real_seed_sets),
         "synthetic_seed_sets_per_skeleton": int(synthetic_seed_sets),
+        "synthetic_realizations_per_configuration": {
+            f"{family}_level_{level}": len({
+                int(record.get("realization", 0)) for record in network_records
+                if record.get("network_type") == "synthetic"
+                and record.get("family") == family
+                and int(record.get("level", 0)) == level
+            })
+            for family in ("ER", "BA", "WS") for level in (1, 2, 3)
+        },
         "max_steps": int(max_steps), "tolerance": float(tolerance),
         "uncertainty": "Seed-set uncertainty is reported within each network; synthetic confidence intervals are computed across independent graph realizations.",
         "other_dynamical_models": "None. Only this SIS equation is implemented.",
@@ -338,14 +352,18 @@ def _save_trajectory_summaries_and_plots(trajectory_path, out_dir):
             mean_exposure=("mean_exposure", "mean"),
         )
         counts = grouped["realization_count"].to_numpy(dtype=int)
-        sd = grouped["prevalence_sd_across_realizations"].fillna(0).to_numpy(dtype=float)
-        se = np.divide(sd, np.sqrt(counts), out=np.zeros_like(sd), where=counts > 0)
-        critical = np.array([student_t.ppf(.975, n - 1) if n > 1 else 0.0 for n in counts])
-        half = critical * se
-        grouped["prevalence_ci95_graph_low"] = np.clip(
-            grouped["prevalence_mean"].to_numpy() - half, 0, 1)
-        grouped["prevalence_ci95_graph_high"] = np.clip(
-            grouped["prevalence_mean"].to_numpy() + half, 0, 1)
+        sd = grouped["prevalence_sd_across_realizations"].to_numpy(dtype=float)
+        valid = (counts > 1) & np.isfinite(sd)
+        half = np.full(len(counts), np.nan, dtype=float)
+        if np.any(valid):
+            se = sd[valid] / np.sqrt(counts[valid])
+            critical = np.array([student_t.ppf(.975, n - 1) for n in counts[valid]])
+            half[valid] = critical * se
+        mean_values = grouped["prevalence_mean"].to_numpy(dtype=float)
+        grouped["prevalence_ci95_graph_low"] = np.where(
+            valid, np.clip(mean_values - half, 0, 1), np.nan)
+        grouped["prevalence_ci95_graph_high"] = np.where(
+            valid, np.clip(mean_values + half, 0, 1), np.nan)
         grouped.to_csv(out / "synthetic_trajectory_summary.csv.gz",
                        index=False, compression="gzip")
         for (family, representation, scenario), subset in grouped.groupby(
@@ -358,7 +376,9 @@ def _save_trajectory_summaries_and_plots(trajectory_path, out_dir):
                 low = config_group["prevalence_ci95_graph_low"].to_numpy()
                 high = config_group["prevalence_ci95_graph_high"].to_numpy()
                 ax.plot(x, mean, label=f"Configuration {int(configuration)}")
-                ax.fill_between(x, low, high, alpha=.15)
+                # For one graph realization, graph-level uncertainty is not estimable.
+                if np.isfinite(low).any() and np.isfinite(high).any():
+                    ax.fill_between(x, low, high, alpha=.15)
             ax.set_xlabel("Discrete time step")
             ax.set_ylabel("Mean prevalence")
             ax.set_ylim(0, 1)
