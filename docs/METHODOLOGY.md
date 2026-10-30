@@ -122,6 +122,8 @@ Before simulating, the dynamics preflight loads every matrix referenced by the s
 
 For a final comparison across the complete experiment, the preflight is run with scope `all`. It writes one row per matrix with the matrix checksum, edge count, \(\lambda_{max}(B)\), and \(\beta_c\). The researcher uses those matrix-specific thresholds to choose one positive \(\rho\) and one fixed absolute \(\beta\) value for each representation. Those three absolute values are held constant across all 546 matrices. This avoids silently adjusting transmission to each graph in the absolute-strength experiment. The normalized \(\eta\) experiment remains matrix-specific by definition.
 
+The final SIS preflight also checks the intended experiment size: three numbered configurations (1, 2, 3) per ER/BA/WS family and, by default, exactly 20 realizations (IDs 1–20) per configuration. If the structural synthetic stage was deliberately run with a different realization count, that count must be passed explicitly to the dynamics command.
+
 The final SIS run uses batched sparse-dense updates: all initial seed sets on a given network/scenario are advanced together, but each seed set retains its own convergence/extinction time and trajectory. This reduces repeated sparse matrix traversals without changing the equation.
 
 The final SIS run writes exclusively under `results_network_analysis/dynamics/{real,synthetic,all}/`. It does not rewrite structural matrices, manifests, node metrics, edge lists or structural summaries. Its outputs include:

@@ -94,7 +94,8 @@ def _validate_paired_support(group_records, group_label):
 
 
 def validate_network_records(network_records, rho=0.2, expected_scope=None,
-                             require_full_design=True, expected_nodes=None):
+                             require_full_design=True, expected_nodes=None,
+                             expected_synthetic_realizations=None):
     """Validate manifests and all sparse matrices before running any SIS steps.
 
     Checks file existence, unique IDs, matrix shape, nonnegative finite values,
@@ -287,6 +288,30 @@ def validate_network_records(network_records, rho=0.2, expected_scope=None,
                 raise ValueError(f"Every synthetic configuration must contain the same positive number of realizations; got {counts}.")
             if len(set(realization_sets)) != 1:
                 raise ValueError("Every synthetic configuration must use the same realization IDs (normally 1..R).")
+            config_id_sets = {
+                family: frozenset(configs_by_family[family])
+                for family in ("ER", "BA", "WS")
+            }
+            if any(values != frozenset(("1", "2", "3")) for values in config_id_sets.values()):
+                raise ValueError(
+                    "Synthetic configurations must be named 1, 2 and 3 within each ER/BA/WS family; "
+                    f"got {config_id_sets}."
+                )
+            if expected_synthetic_realizations is not None:
+                expected_count = int(expected_synthetic_realizations)
+                if expected_count < 1:
+                    raise ValueError("expected_synthetic_realizations must be positive.")
+                observed_counts = set(counts.values())
+                if observed_counts != {expected_count}:
+                    raise ValueError(
+                        f"Expected {expected_count} realizations in every synthetic configuration; "
+                        f"observed counts are {counts}."
+                    )
+                expected_ids = frozenset(str(i) for i in range(1, expected_count + 1))
+                if any(values != expected_ids for values in realizations_by_config.values()):
+                    raise ValueError(
+                        f"Each synthetic configuration must contain realization IDs 1..{expected_count}."
+                    )
 
     diagnostics_df = pd.DataFrame(diagnostics)
     report = {
@@ -301,6 +326,10 @@ def validate_network_records(network_records, rho=0.2, expected_scope=None,
         "eta_levels": list(ETA_LEVELS),
         "real_networks": len(real_records) == 6 if real_records else None,
         "synthetic_skeleton_count": len(skeleton_groups) if synthetic_records else 0,
+        "expected_synthetic_realizations_per_configuration": (
+            int(expected_synthetic_realizations)
+            if expected_synthetic_realizations is not None and synthetic_records else None
+        ),
         "synthetic_configuration_count": (
             len({(str(r.get("family")), str(r.get("configuration"))) for r in synthetic_records})
             if synthetic_records else 0
@@ -593,7 +622,7 @@ def run_dynamics_analysis(network_records, out_dir, seed=20261030, rho=0.2,
                           real_seed_sets=20, synthetic_seed_sets=5,
                           infection_fraction=0.01, expected_scope=None,
                           require_full_design=True, expected_nodes=None,
-                          write_plots=True):
+                          write_plots=True, expected_synthetic_realizations=None):
     """Run Alternate Model A on every validated matrix in the selected scope."""
     rho = _as_float(rho, "rho")
     if not 0.0 < rho <= 1.0:
@@ -618,6 +647,7 @@ def run_dynamics_analysis(network_records, out_dir, seed=20261030, rho=0.2,
     records, precheck, validation_report = validate_network_records(
         network_records, rho=rho, expected_scope=expected_scope,
         require_full_design=require_full_design, expected_nodes=expected_nodes,
+        expected_synthetic_realizations=expected_synthetic_realizations,
     )
     precheck.to_csv(out / "dynamics_input_precheck.csv", index=False)
     (out / "dynamics_input_validation.json").write_text(

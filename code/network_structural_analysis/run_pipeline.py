@@ -329,13 +329,14 @@ def _load_dynamics_scope_records(out, scope):
     return records
 
 
-def _dynamics_validation_stage(out, scope, rho, expected_nodes):
+def _dynamics_validation_stage(out, scope, rho, expected_nodes, expected_realizations):
     records = _load_dynamics_scope_records(out, scope)
     destination = out / "dynamics" / f"validation_{scope}"
     destination.mkdir(parents=True, exist_ok=True)
     normalised, diagnostics, report = validate_network_records(
         records, rho=rho, expected_scope=scope,
         require_full_design=True, expected_nodes=expected_nodes,
+        expected_synthetic_realizations=expected_realizations,
     )
     diagnostics.to_csv(destination / "dynamics_input_precheck.csv", index=False)
     (destination / "dynamics_input_validation.json").write_text(
@@ -358,7 +359,7 @@ def _dynamics_validation_stage(out, scope, rho, expected_nodes):
 
 def _dynamics_stage(out, scope, seed, rho, beta_by_rep, max_steps, tolerance,
                     real_seed_sets, synthetic_seed_sets, infection_fraction,
-                    expected_nodes):
+                    expected_nodes, expected_realizations):
     records = _load_dynamics_scope_records(out, scope)
     destination = out / "dynamics" / scope
     network_results, seed_results = run_dynamics_analysis(
@@ -367,6 +368,7 @@ def _dynamics_stage(out, scope, seed, rho, beta_by_rep, max_steps, tolerance,
         real_seed_sets=real_seed_sets, synthetic_seed_sets=synthetic_seed_sets,
         infection_fraction=infection_fraction, expected_scope=scope,
         require_full_design=True, expected_nodes=expected_nodes,
+        expected_synthetic_realizations=expected_realizations,
     )
     print(json.dumps({
         "status": "dynamics_completed", "scope": scope,
@@ -425,7 +427,9 @@ def run(args=None):
     elif ns.stage == "dynamics-validate":
         if ns.rho is None:
             parser.error("For --stage dynamics-validate, provide --rho to calculate beta_c.")
-        _dynamics_validation_stage(out, ns.scope, ns.rho, ns.expected_nodes)
+        _dynamics_validation_stage(
+            out, ns.scope, ns.rho, ns.expected_nodes, ns.realizations
+        )
     elif ns.stage == "dynamics":
         required = {"rho": ns.rho, "beta-uu": ns.beta_uu,
                     "beta-ud": ns.beta_ud, "beta-wd": ns.beta_wd}
@@ -441,6 +445,7 @@ def run(args=None):
             {"UU": ns.beta_uu, "UD": ns.beta_ud, "WD": ns.beta_wd},
             ns.max_steps, ns.tolerance, ns.real_seed_sets,
             ns.synthetic_seed_sets, ns.infection_fraction, ns.expected_nodes,
+            ns.realizations,
         )
 
 

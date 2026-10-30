@@ -103,7 +103,7 @@ For the final full experiment, after both empirical and synthetic networks are p
 python -m network_structural_analysis.run_pipeline --stage dynamics-validate --scope all --out results_network_analysis --rho 0.2
 ```
 
-The full preflight checks all 546 matrices (six empirical and 540 synthetic), dimensions, finite/nonnegative weights, no diagonal links, binary UU/UD, WD weights in [0,1], symmetric UU matrices, and the paired support rules: WD must have the same directed support as UD, and UU must equal the undirected union of UD. It also verifies the six empirical year/representation combinations and the nine synthetic configurations with paired UU/UD/WD representations and common realization IDs/seeds.
+The full preflight checks all 546 matrices (six empirical and 540 synthetic), dimensions, finite/nonnegative weights, no diagonal links, binary UU/UD, WD weights in [0,1], symmetric UU matrices, and the paired support rules: WD must have the same directed support as UD, and UU must equal the undirected union of UD. It also verifies the six empirical year/representation combinations and the nine synthetic configurations with paired UU/UD/WD representations and common realization IDs/seeds. By default it requires exactly 20 realizations (IDs 1–20) in every synthetic configuration. The `--realizations` option can be set to a different positive count only when the structural synthetic stage was intentionally run with that count.
 
 Review:
 

@@ -224,6 +224,7 @@ class TestNetworkPipeline(unittest.TestCase):
             normalised, diagnostics, report = validate_network_records(
                 records, rho=.2, expected_scope="all",
                 require_full_design=True, expected_nodes=4,
+                expected_synthetic_realizations=1,
             )
             self.assertEqual(len(normalised), 33)
             self.assertEqual(len(diagnostics), 33)
@@ -233,6 +234,16 @@ class TestNetworkPipeline(unittest.TestCase):
             self.assertEqual(report["synthetic_configuration_count"], 9)
             self.assertEqual(set(report["beta_critical_by_representation"]), {"UU", "UD", "WD"})
             self.assertEqual(set(diagnostics["n_nodes"]), {4})
+
+    def test_sis_precheck_enforces_expected_synthetic_realization_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            records, _ = self._write_complete_dynamics_fixture(tmp)
+            with self.assertRaisesRegex(ValueError, "Expected 20 realizations"):
+                validate_network_records(
+                    records, rho=.2, expected_scope="all",
+                    require_full_design=True, expected_nodes=4,
+                    expected_synthetic_realizations=20,
+                )
 
     def test_sis_precheck_rejects_unpaired_synthetic_weighted_support(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -249,6 +260,7 @@ class TestNetworkPipeline(unittest.TestCase):
                 validate_network_records(
                     records, rho=.2, expected_scope="all",
                     require_full_design=True, expected_nodes=4,
+                    expected_synthetic_realizations=1,
                 )
 
     def test_full_dynamics_end_to_end_real_and_synthetic_fixture(self):
@@ -262,6 +274,7 @@ class TestNetworkPipeline(unittest.TestCase):
                 real_seed_sets=2, synthetic_seed_sets=2,
                 infection_fraction=.25, expected_scope="all",
                 require_full_design=True, expected_nodes=4, write_plots=False,
+                expected_synthetic_realizations=1,
             )
             self.assertEqual(network_results["network_id"].nunique(), 33)
             self.assertEqual(network_results["scenario"].nunique(), 7)
