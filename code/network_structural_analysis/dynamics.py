@@ -561,8 +561,10 @@ def _ci(values, bounds=None):
     if not n:
         return (float("nan"), float("nan"), float("nan"), float("nan"), 0)
     mean = float(values.mean())
-    sd = float(values.std(ddof=1)) if n > 1 else 0.0
-    half = float(student_t.ppf(.975, n - 1) * sd / np.sqrt(n)) if n > 1 else 0.0
+    if n == 1:
+        return mean, float("nan"), float("nan"), float("nan"), 1
+    sd = float(values.std(ddof=1))
+    half = float(student_t.ppf(.975, n - 1) * sd / np.sqrt(n))
     low, high = mean - half, mean + half
     if bounds is not None:
         low, high = max(bounds[0], low), min(bounds[1], high)
@@ -881,6 +883,15 @@ def run_dynamics_analysis(network_records, out_dir, seed=20261030, rho=0.2,
         "initial_infected_fraction": infection_fraction,
         "real_seed_sets": int(real_seed_sets),
         "synthetic_seed_sets_per_skeleton": int(synthetic_seed_sets),
+        "synthetic_realizations_per_configuration": {
+            f"{family}_level_{level}": len({
+                int(record.get("realization", 0)) for record in records
+                if record.get("network_type") == "synthetic"
+                and record.get("family") == family
+                and int(record.get("configuration", 0)) == level
+            })
+            for family in ("ER", "BA", "WS") for level in (1, 2, 3)
+        },
         "max_steps": max_steps,
         "tolerance": tolerance,
         "random_seed": int(seed),
@@ -1035,7 +1046,9 @@ def _save_trajectory_summaries_and_plots(trajectory_path, out_dir):
                 low = config_group["prevalence_ci95_graph_low"].to_numpy()
                 high = config_group["prevalence_ci95_graph_high"].to_numpy()
                 ax.plot(x, mean, label=f"Configuration {int(configuration)}")
-                ax.fill_between(x, low, high, alpha=.15)
+                # For one graph realization, graph-level uncertainty is not estimable.
+                if np.isfinite(low).any() and np.isfinite(high).any():
+                    ax.fill_between(x, low, high, alpha=.15)
             ax.set_xlabel("Discrete time step")
             ax.set_ylabel("Mean prevalence")
             ax.set_ylim(0, 1)

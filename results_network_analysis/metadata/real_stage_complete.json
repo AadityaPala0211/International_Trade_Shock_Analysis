@@ -1,0 +1,7 @@
+{
+  "threshold": 0.001,
+  "empirical_network_matrices": 6,
+  "expected_empirical_matrices": 6,
+  "synthetic_calibration_saved": true,
+  "synthetic_stage_run": false
+}

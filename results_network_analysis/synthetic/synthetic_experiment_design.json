@@ -1,0 +1,33 @@
+{
+  "families": [
+    "ER",
+    "BA",
+    "WS"
+  ],
+  "configurations_per_family": 3,
+  "realizations_per_configuration": 1,
+  "independent_skeletons": 9,
+  "paired_representation_matrices": 27,
+  "node_count": 4050,
+  "reference_mean_degree": 121.24493827160494,
+  "empirical_reciprocity_target": 0.2806140939068565,
+  "er_expected_degree_multipliers": [
+    0.5,
+    1.0,
+    1.5
+  ],
+  "ba_target_degree_multipliers": [
+    0.5,
+    1.0,
+    1.5
+  ],
+  "ws_rewire_probabilities": [
+    0.01,
+    0.1,
+    0.5
+  ],
+  "ws_degree": "Fixed at nearest even integer to the empirical reference mean UU degree.",
+  "weight_calibration": "Empirical nonzero retained dependency shares; per-buyer retained totals sampled conditionally on synthetic in-degree with nearest-degree fallback.",
+  "paired_seed_policy_for_dynamics": "Five initial seed sets per skeleton; same seed sets are reused across UU, UD and WD.",
+  "matrices_persisted": true
+}

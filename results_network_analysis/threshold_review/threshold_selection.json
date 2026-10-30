@@ -1,0 +1,21 @@
+{
+  "selected_threshold": 0.001,
+  "selection_method": "manual_review_of_threshold_diagnostics",
+  "automatic_threshold_selection": false,
+  "candidate_thresholds": [
+    0.0,
+    1e-07,
+    3e-07,
+    1e-06,
+    3e-06,
+    1e-05,
+    3e-05,
+    0.0001,
+    0.0003,
+    0.001,
+    0.003,
+    0.01
+  ],
+  "analyst_instruction": "Analyst-selected common threshold: 0.001.",
+  "warning": "Threshold is a sparsification parameter, not an economically observed cutoff. Do not treat a candidate or curve elbow as an automatic optimum."
+}

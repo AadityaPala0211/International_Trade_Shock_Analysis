@@ -265,6 +265,10 @@ def _real_stage(data_dir, out, threshold, expected_nodes, cfg, seed,
 
 
 def _synthetic_stage(out, cfg, realizations, seed, path_sample_sources, betweenness_k):
+    completion_path = out / "metadata" / "synthetic_stage_complete.json"
+    completion_path.parent.mkdir(parents=True, exist_ok=True)
+    if completion_path.exists():
+        completion_path.unlink()
     calibration_path = out / "metadata" / "synthetic_calibration.json"
     samples_path = out / "metadata" / "synthetic_calibration_samples.npz"
     if not calibration_path.exists() or not samples_path.exists():
@@ -286,11 +290,22 @@ def _synthetic_stage(out, cfg, realizations, seed, path_sample_sources, betweenn
     for metric in ("mean_degree", "density", "average_clustering_undirected_projection",
                    "giant_component_fraction", "reciprocity"):
         plot_synthetic_comparison(synthetic, out / "figures" / f"synthetic_{metric}.png", metric)
-    _json_write(out / "metadata" / "synthetic_stage_complete.json", {
+    validation = validate_network_manifests(
+        out, scope="synthetic", expected_nodes=int(calibration["node_count"]),
+        expected_realizations=int(realizations),
+    )
+    if not validation["ok"]:
+        raise RuntimeError("Generated synthetic ensemble failed validation: " +
+                           "; ".join(validation["errors"][:5]))
+    _json_write(completion_path, {
         "realization_count_per_configuration": int(realizations),
         "independent_skeletons": 9 * int(realizations),
         "paired_representation_matrices": 27 * int(realizations),
+        "manifest_rows": int(validation["synthetic_manifest_rows"]),
+        "verified_matrices": int(validation["verified_matrix_count"]),
+        "orphan_matrix_files": int(validation["orphan_matrix_files"]),
         "matrices_persisted": True,
+        "validation_passed": True,
         "sis_stage_run": False,
     })
     print(json.dumps({
@@ -390,7 +405,10 @@ def run(args=None):
     parser.add_argument("--threshold", type=float, default=None,
                         help="Analyst-selected common dependency-share threshold; required for --stage real.")
     parser.add_argument("--expected-nodes", type=int, default=cfg.expected_nodes)
-    parser.add_argument("--realizations", type=int, default=cfg.synthetic.realizations)
+    parser.add_argument("--realizations", type=int, default=cfg.synthetic.realizations,
+                        help="Synthetic graph realizations per configuration (default: 10).")
+    parser.add_argument("--expected-realizations", type=int, default=None,
+                        help="Optional preflight assertion; otherwise the synthetic manifest count is inferred.")
     parser.add_argument("--seed", type=int, default=cfg.synthetic.seed)
     parser.add_argument("--path-sample-sources", type=int, default=cfg.threshold.path_sample_sources)
     parser.add_argument("--betweenness-k", type=int, default=cfg.threshold.betweenness_k)
@@ -428,7 +446,7 @@ def run(args=None):
         if ns.rho is None:
             parser.error("For --stage dynamics-validate, provide --rho to calculate beta_c.")
         _dynamics_validation_stage(
-            out, ns.scope, ns.rho, ns.expected_nodes, ns.realizations
+            out, ns.scope, ns.rho, ns.expected_nodes, ns.expected_realizations
         )
     elif ns.stage == "dynamics":
         required = {"rho": ns.rho, "beta-uu": ns.beta_uu,
@@ -445,7 +463,7 @@ def run(args=None):
             {"UU": ns.beta_uu, "UD": ns.beta_ud, "WD": ns.beta_wd},
             ns.max_steps, ns.tolerance, ns.real_seed_sets,
             ns.synthetic_seed_sets, ns.infection_fraction, ns.expected_nodes,
-            ns.realizations,
+            ns.expected_realizations,
         )
 
 

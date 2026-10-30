@@ -1,0 +1,43 @@
+{
+  "model": "Alternate Model A: deterministic mass-action/bilinear SIS (NIMFA-style)",
+  "equation": "d_j(t+1)=clip_[0,1]((1-rho)*d_j(t)+(1-d_j(t))*beta*sum_i B_ij*d_i(t)); e(t)=B.T@d(t)",
+  "orientation": "B[i,j] is supplier i to buyer j; force on buyer j is (B.T @ d)[j].",
+  "representations": {
+    "UU": "binary undirected adjacency",
+    "UD": "binary directed supplier-to-buyer adjacency",
+    "WD": "threshold-retained dependency-share matrix"
+  },
+  "rho": 0.2,
+  "absolute_beta_by_representation": {
+    "UU": 0.000887364,
+    "UD": 0.002990112,
+    "WD": 0.268901182
+  },
+  "eta_levels": [
+    0.5,
+    0.9,
+    1.0,
+    1.1,
+    1.5,
+    2.0
+  ],
+  "beta_critical": "rho / lambda_max(B)",
+  "infection_fraction": 0.01,
+  "real_seed_sets": 20,
+  "synthetic_seed_sets_per_skeleton": 5,
+  "synthetic_realizations_per_configuration": {
+    "ER_level_1": 1,
+    "ER_level_2": 1,
+    "ER_level_3": 1,
+    "BA_level_1": 1,
+    "BA_level_2": 1,
+    "BA_level_3": 1,
+    "WS_level_1": 1,
+    "WS_level_2": 1,
+    "WS_level_3": 1
+  },
+  "max_steps": 300,
+  "tolerance": 1e-08,
+  "uncertainty": "Seed-set uncertainty is reported within each network; synthetic confidence intervals are computed across independent graph realizations.",
+  "other_dynamical_models": "None. Only this SIS equation is implemented."
+}

@@ -1,0 +1,11 @@
+{
+  "realization_count_per_configuration": 1,
+  "independent_skeletons": 9,
+  "paired_representation_matrices": 27,
+  "manifest_rows": 27,
+  "verified_matrices": 27,
+  "orphan_matrix_files": 0,
+  "matrices_persisted": true,
+  "validation_passed": true,
+  "sis_stage_run": false
+}
