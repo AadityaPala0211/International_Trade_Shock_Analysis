@@ -74,12 +74,9 @@ class TestNetworkPipeline(unittest.TestCase):
     def test_synthetic_weighted_buyer_totals_are_calibrated(self):
         A=sparse.csr_matrix(np.array([[0,1,1],[1,0,1],[1,1,0]],dtype=np.uint8))
         target=np.array([0.2,0.4,0.6]); shares=np.array([0.1,0.2,0.3])
-        W=_calibrate_weighted_adjacency(A,shares,target,seed=12)
+        W,sampled_targets=_calibrate_weighted_adjacency(A,shares,target,seed=12)
         sums=np.asarray(W.sum(axis=0)).ravel()
-        rng=np.random.default_rng(12)
-        rng.choice(shares,size=A.nnz,replace=True)
-        expected=rng.choice(target,size=A.shape[1],replace=True)
-        self.assertTrue(np.allclose(sums,expected))
+        self.assertTrue(np.allclose(sums,sampled_targets))
 
     def test_sparse_metrics_match_networkx_on_known_graphs(self):
         import networkx as nx
