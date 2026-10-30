@@ -157,8 +157,18 @@ class ShockExperimentsTests(unittest.TestCase):
                 output / "real_2019_UU" / "absolute" / "targeted_cohort_runs.csv.gz")
             paired = pd.read_csv(
                 output / "real_2022_WD" / "absolute" / "targeted_cohort_runs.csv.gz")
-            first_random = first[first.cohort == "random"].sort_values("repeat").seed_node_ids.tolist()
-            paired_random = paired[paired.cohort == "random"].sort_values("repeat").seed_node_ids.tolist()
+            first_random = (
+                first[first.cohort == "random"]
+                .sort_values(["repeat", "centrality"])
+                .drop_duplicates("repeat")
+                .sort_values("repeat")["seed_node_ids"].astype(str).tolist()
+            )
+            paired_random = (
+                paired[paired.cohort == "random"]
+                .sort_values(["repeat", "centrality"])
+                .drop_duplicates("repeat")
+                .sort_values("repeat")["seed_node_ids"].astype(str).tolist()
+            )
             self.assertEqual(first_random, paired_random)
             self.assertFalse((output / "empirical").exists())
             after = {str(file_path): digest(file_path) for file_path in tracked_files}
