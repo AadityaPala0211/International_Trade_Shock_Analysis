@@ -294,7 +294,8 @@ def run_single_node_census(B, beta, rho, labels=None, node_metrics=None,
 
 def run_targeted_cohort_experiment(B, beta, rho, node_metrics, fraction=0.01,
                                    repeats=20, seed=20261030, max_steps=300,
-                                   tolerance=1e-8, centralities=DEFAULT_CENTRALITIES):
+                                   tolerance=1e-8, centralities=DEFAULT_CENTRALITIES,
+                                   initial_infection=1.0):
     """Compare top/bottom centrality cohorts against matched-size random cohorts."""
     B = _csr(B)
     n = B.shape[0]
@@ -302,6 +303,9 @@ def run_targeted_cohort_experiment(B, beta, rho, node_metrics, fraction=0.01,
     k = max(1, int(np.ceil(fraction*n)))
     if not 0 < fraction <= 0.5 or int(repeats) < 1:
         raise ValueError("fraction must be in (0, 0.5] and repeats must be positive.")
+    initial_infection = float(initial_infection)
+    if not np.isfinite(initial_infection) or not 0 < initial_infection <= 1:
+        raise ValueError("initial_infection must be in (0, 1].")
     metrics = node_metrics.sort_values("node_id").reset_index(drop=True)
     if len(metrics) != n:
         raise ValueError("node_metrics must have one row per network node.")
@@ -311,11 +315,12 @@ def run_targeted_cohort_experiment(B, beta, rho, node_metrics, fraction=0.01,
 
     def evaluate(cohort, centrality, repeat_id, node_ids):
         state = np.zeros(n)
-        state[np.asarray(node_ids, dtype=int)] = 1.0
+        state[np.asarray(node_ids, dtype=int)] = initial_infection
         outcome = simulate_model_a(B, state, beta, rho, max_steps, tolerance)
         rows.append({
             "cohort": cohort, "centrality": centrality, "repeat": repeat_id,
-            "seed_count": k, "seed_node_ids": "|".join(map(str, node_ids)),
+            "seed_count": k, "initial_infection": initial_infection,
+            "seed_node_ids": "|".join(map(str, node_ids)),
             "seed_nodes": "|".join(metrics.loc[np.asarray(node_ids, dtype=int), "node"].astype(str)),
             "peak_prevalence": outcome["peak_prevalence"],
             "peak_step": outcome["peak_step"],
