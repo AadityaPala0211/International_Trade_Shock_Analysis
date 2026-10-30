@@ -43,8 +43,15 @@ The extension calculates supplier out-degree/out-strength, buyer in-degree/
 in-strength, undirected projection degree, supplier-to-buyer PageRank and
 supplier-to-buyer eigenvector centrality. It also reuses the existing
 structural-analysis betweenness, k-core and clustering columns when present.
-The top/bottom cohorts are structural targeting hypotheses; the scores never
-enter the SIS state transition itself.
+Directed UD/WD graphs can therefore use up to ten targeting scores. For
+symmetric UU graphs, redundant in/out degree and strength measures are omitted;
+one projection-degree measure is retained. The top/bottom cohorts are
+structural targeting hypotheses; scores never enter the SIS transition itself.
+
+Random control cohorts are reproducibly paired across the six real
+year/representation matrices and across UU/UD/WD views of each synthetic
+skeleton. The same random node groups are reused across beta scenarios and
+centrality comparisons within a network.
 
 ## Runnable command
 
@@ -73,8 +80,16 @@ The default empirical scope is all six matrices (2019/2022 × UU/UD/WD) and all
 seven scenarios (absolute plus six eta values). This is 170,100 single-source
 trajectories (6 × 7 × 4,050). The one-source census is computed in bounded
 batches of 64 source nodes to reduce repeated sparse-matrix traversal and keep
-memory usage predictable. Targeted cohorts default to ten available
-centralities × (top + bottom + 20 random controls) for each network/scenario.
+memory usage predictable.
+
+Cumulative prevalence uses a common fixed evaluation horizon: if a trajectory
+converges early to a positive state, that equilibrium prevalence is carried
+forward to the final step; if it becomes extinct, zero is carried forward.
+The output separately retains the area observed until stopping and the
+equilibrium plateau extension. This avoids giving early-converged persistent
+shocks a shorter cumulative-impact window than other runs. Directed UD/WD
+targeting uses up to ten available centralities × (top + bottom + 20 random
+controls); UU uses its nonredundant set of centrality scores.
 
 Synthetic networks are deliberately opt-in because a full 270-matrix, seven-
 scenario node census would require 7,654,500 individual source trajectories
