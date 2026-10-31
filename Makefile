@@ -1,14 +1,13 @@
 PYTHON ?= python
-OUT ?= results_network_analysis
 DATA ?= data
-THRESHOLD ?=
+OUT ?= results/revised_structural_analysis
+CENSUS_OUT ?= results/single_node_shock_census
+TARGETED_OUT ?= results/targeted_individual_node_sis
+THRESHOLD ?= 0.001
 RHO ?= 0.2
-BETA_UU ?= 0.1
-BETA_UD ?= 0.1
-BETA_WD ?= 0.1
-MAX_STEPS ?= 300
-TOLERANCE ?= 1e-8
 SEED ?= 20261030
+BATCH_SIZE ?= 128
+MAX_STEPS ?= 300
 
 install:
 	$(PYTHON) -m pip install -r code/network_structural_analysis/requirements.txt
@@ -16,36 +15,41 @@ install:
 test:
 	PYTHONPATH=code $(PYTHON) -m unittest discover -s code/network_structural_analysis/tests -v
 
-inspect:
-	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage inspect --data-dir $(DATA)
+compile:
+	PYTHONPATH=code $(PYTHON) -m compileall -q code/network_structural_analysis
 
-threshold:
-	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage threshold --data-dir $(DATA) --out $(OUT)
+preflight:
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage preflight --data-dir $(DATA) --expected-nodes 4050
 
-real:
-	@test -n "$(THRESHOLD)" || (echo "Provide a reviewed threshold: make real THRESHOLD=0.0001" && exit 1)
-	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage real --data-dir $(DATA) --out $(OUT) --threshold $(THRESHOLD)
+structural-real:
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage structural --scope real --data-dir $(DATA) --out $(OUT) --threshold $(THRESHOLD) --expected-nodes 4050 --seed $(SEED)
 
-synthetic:
-	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage synthetic --out $(OUT) --realizations 20 --seed $(SEED)
+validate-real:
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage validate-structural --scope real --out $(OUT) --expected-nodes 4050
 
-# Preflight stages inspect persisted matrices and calculate lambda_max and beta_c.
-# They do not simulate SIS or modify the structural outputs.
-dynamics-validate-real:
-	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage dynamics-validate --scope real --out $(OUT) --rho $(RHO)
+structural-synthetic:
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage structural --scope synthetic --out $(OUT) --expected-nodes 4050 --seed $(SEED)
 
-dynamics-validate-synthetic:
-	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage dynamics-validate --scope synthetic --out $(OUT) --rho $(RHO)
+validate-synthetic:
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage validate-structural --scope synthetic --out $(OUT) --expected-nodes 4050
 
-dynamics-validate-all:
-	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage dynamics-validate --scope all --out $(OUT) --rho $(RHO)
+validate-all:
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage validate-structural --scope all --out $(OUT) --expected-nodes 4050
 
-# Absolute beta values are illustrative defaults; choose them after reviewing preflight beta_c output.
-dynamics-real:
-	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage dynamics --scope real --out $(OUT) --seed $(SEED) --rho $(RHO) --beta-uu $(BETA_UU) --beta-ud $(BETA_UD) --beta-wd $(BETA_WD) --max-steps $(MAX_STEPS) --tolerance $(TOLERANCE)
+dynamics-preflight:
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage dynamics-preflight --out $(OUT) --census-out $(CENSUS_OUT) --rho $(RHO)
 
-dynamics-synthetic:
-	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage dynamics --scope synthetic --out $(OUT) --seed $(SEED) --rho $(RHO) --beta-uu $(BETA_UU) --beta-ud $(BETA_UD) --beta-wd $(BETA_WD) --max-steps $(MAX_STEPS) --tolerance $(TOLERANCE)
+census:
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage census --out $(OUT) --census-out $(CENSUS_OUT) --rho $(RHO) --batch-size $(BATCH_SIZE) --max-steps $(MAX_STEPS)
 
-dynamics-all:
-	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage dynamics --scope all --out $(OUT) --seed $(SEED) --rho $(RHO) --beta-uu $(BETA_UU) --beta-ud $(BETA_UD) --beta-wd $(BETA_WD) --max-steps $(MAX_STEPS) --tolerance $(TOLERANCE)
+census-validate:
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage census-validate --out $(OUT) --census-out $(CENSUS_OUT)
+
+compare-select:
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage compare-select --out $(OUT) --census-out $(CENSUS_OUT)
+
+targeted:
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage targeted --out $(OUT) --census-out $(CENSUS_OUT) --targeted-out $(TARGETED_OUT) --rho $(RHO) --batch-size $(BATCH_SIZE) --max-steps $(MAX_STEPS)
+
+targeted-validate:
+	PYTHONPATH=code $(PYTHON) -m network_structural_analysis.run_pipeline --stage targeted-validate --targeted-out $(TARGETED_OUT)

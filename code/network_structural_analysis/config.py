@@ -1,11 +1,21 @@
-"""Central configuration and reproducible experiment design."""
+"""Central experiment configuration.
+
+The active research pipeline is WD-only. Legacy multi-representation constants
+are explicitly named LEGACY_* and are used only by compatibility helpers and
+historical tests; they are not exposed by the active CLI or new manifests.
+"""
 from dataclasses import dataclass, asdict
 
 EXPECTED_NODES = 4050
 YEARS = (2019, 2022)
-REPRESENTATIONS = ("UU", "UD", "WD")
+ACTIVE_REPRESENTATION = "WD"
+REPRESENTATIONS = ("WD",)
+LEGACY_REPRESENTATIONS = ("UU", "UD", "WD")
 FAMILIES = ("ER", "BA", "WS")
 ETA_LEVELS = (0.5, 0.9, 1.0, 1.1, 1.5, 2.0)
+STAGE1_ETA_LEVELS = (0.9, 1.1)
+ACTIVE_SYNTHETIC_REALIZATIONS = 1
+ACTIVE_RHO = 0.2
 
 
 @dataclass(frozen=True)
@@ -18,6 +28,8 @@ class ThresholdConfig:
 
 @dataclass(frozen=True)
 class SyntheticConfig:
+    # Retained for legacy helper compatibility; the active workflow hard-codes
+    # exactly one realization per synthetic parameter configuration.
     realizations: int = 10
     seed: int = 20261030
     ws_rewire_probabilities: tuple = (0.01, 0.10, 0.50)
@@ -33,6 +45,12 @@ class PipelineConfig:
     synthetic: SyntheticConfig = SyntheticConfig()
 
     def to_dict(self):
-        return {"expected_nodes": self.expected_nodes,
-                "threshold": asdict(self.threshold),
-                "synthetic": asdict(self.synthetic)}
+        return {
+            "expected_nodes": self.expected_nodes,
+            "threshold": asdict(self.threshold),
+            "synthetic": asdict(self.synthetic),
+            "active_representation": ACTIVE_REPRESENTATION,
+            "active_synthetic_realizations": ACTIVE_SYNTHETIC_REALIZATIONS,
+            "active_rho": ACTIVE_RHO,
+            "stage1_eta_levels": list(STAGE1_ETA_LEVELS),
+        }

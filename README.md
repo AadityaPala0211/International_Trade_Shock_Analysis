@@ -1,183 +1,252 @@
-# International Trade Shock Analysis — ICIO Networks
+# International Trade Shock Analysis — WD-only 11-network workflow
 
-This repository constructs the 2019 and 2022 OECD Inter-Country Input-Output (ICIO) production networks, builds paired synthetic ER/BA/WS benchmarks, computes structural properties, and provides one deterministic SIS-style shock-propagation model.
+This branch introduces the revised structural-analysis and individual-node SIS research workflow. The active command-line interface uses **one weighted directed (WD) matrix per network** and contains exactly 11 selected networks. Historical results under \`results_network_analysis/\` are retained and are not inputs to the new run except for the approved synthetic degree calibration described below.
 
-The pipeline is staged deliberately. **Run threshold diagnostics first, inspect them, run the real networks, inspect those outputs, and only then generate the synthetic ensemble.** The real stage never launches synthetic generation automatically.
+## Active design
 
-## Research design
+| Group | Networks | Realizations |
+|---|---:|---:|
+| OECD ICIO 2019 | 1 | 1 |
+| OECD ICIO 2022 | 1 | 1 |
+| ER configurations 1, 2, 3 | 3 | 1 each |
+| BA configurations 1, 2, 3 | 3 | 1 each |
+| WS configurations 1, 2, 3 | 3 | 1 each |
+| **Total** | **11** | **11** |
 
-The detailed country-industry node universe is expected to contain **4,050 nodes**. For each empirical year and each synthetic realization, the package creates three representations:
+All networks retain the detailed 4,050 country-industry node universe. The active manifest and result-generation path contain only WD. No UU or UD matrices are written by the revised pipeline. Old UU/UD/WD result files and the old results directory are not deleted or overwritten.
 
-- **UU:** unweighted undirected projection.
-- **UD:** unweighted directed supplier-to-buyer network.
-- **WD:** weighted directed dependency network.
+## Retained matrix and economic meaning
 
-The transaction convention is fixed: \(Z_{ij}\) is the intermediate flow from supplier \(i\) to buyer \(j\). For buyer \(j\), dependency share is \(P_{ij}=Z_{ij}/\sum_k Z_{kj}\). Self-use remains in the denominator, while diagonal graph edges are excluded. The same manually selected dependency-share threshold \(\tau\) is applied to both empirical years. WD weights are not renormalized after thresholding.
+Let \(Z_{ij}\) be the intermediate input transaction from supplier \(i\) to buyer \(j\). The buyer's total intermediate purchases are \(p_j=\sum_k Z_{kj}\), including self-use. The WD dependency-share matrix is:
 
-Synthetic design: 3 ER configurations, 3 BA configurations and 3 WS configurations. Each configuration has **10 independent realizations by default** (90 undirected skeletons; 270 paired synthetic matrices). Including the six empirical matrices gives **276 matrices**. You can choose another positive count with `--realizations`; 20 is preferable when runtime permits, while 1 is only a pilot. Synthetic WD edge weights are dependency-strength-like values calibrated from the empirical networks; they are not real trade flows.
+\[
+P_{ij}=\frac{Z_{ij}}{p_j},\qquad p_j>0.
+\]
 
-## Install
+Self-edges are excluded from the network matrix, but self-use remains in the denominator. A common, manually reviewed threshold is applied to both empirical years; the previously reviewed threshold recorded in the existing project metadata is **\(\tau=0.001\)**. The retained WD edge weights are not renormalized after thresholding.
+
+\[
+B_{ij}=P_{ij}\quad\text{if }P_{ij}\geq\tau\text{ and }i\ne j;\qquad 0\text{ otherwise}.
+\]
+
+Rows are suppliers and columns are buyers. Consequently, outgoing degree/strength describe a supplier's direct downstream connections and total retained dependency shares supplied to buyers. Incoming degree/strength describe the supplier links and retained dependency shares received by a buyer. Betweenness uses directed paths with binary edge lengths; PageRank uses dependency-share weights; k-core and clustering use the undirected projection for those metrics only. The SIS model itself always consumes the same persisted WD matrix.
+
+## Approved parameter preservation
+
+The active structural pipeline retains the established parameter settings:
+
+- Expected node count: 4,050.
+- Synthetic ER expected-degree multipliers: 0.5, 1.0, 1.5.
+- Synthetic BA target-degree multipliers: 0.5, 1.0, 1.5.
+- Synthetic WS rewiring probabilities: 0.01, 0.10, 0.50.
+- One fixed synthetic realization per configuration.
+- Recovery parameter: \(\rho=0.2\), retained from the current approved SIS run metadata.
+- Stage 1 transmission ratios: \(\eta\in\{0.9,1.1\}\).
+- Stage 2 transmission ratios: \(\eta\in\{0.5,0.9,1.0,1.1,1.5,2.0\}\).
+- SIS horizon: 300 updates by default.
+- Affected-node threshold: 0.01.
+- Extinction tolerance: \(10^{-8}\), sustained for 5 consecutive steps.
+- Convergence tolerance: \(10^{-8}\), sustained for 5 consecutive steps.
+- Final observation window: 30 time points.
+- Census batch size: 128 source nodes (configurable).
+
+The existing approved synthetic reference mean degree is read from \`results_network_analysis/metadata/synthetic_calibration.json\`; it is **not re-estimated from new UU matrices**. This preserves the previously agreed ER/BA/WS parameter values while keeping the new active workflow WD-only. Directed reciprocity is calculated from the two WD supports. Synthetic WD weights are sampled/calibrated from the retained empirical WD dependency-share samples. Synthetic matrices are benchmarks, not observed economic flows.
+
+## Repository installation and tests
 
 From the repository root:
 
-```bash
+\`\`\`bash
 python -m pip install -r code/network_structural_analysis/requirements.txt
-```
+\`\`\`
 
 Windows PowerShell:
 
-```powershell
+\`\`\`powershell
 $env:PYTHONPATH = "code"
-```
+\`\`\`
 
 macOS/Linux:
 
-```bash
+\`\`\`bash
 export PYTHONPATH=code
-```
+\`\`\`
 
-## Required run sequence
+Run tests:
 
-### 1. Inspect the source files (optional)
+\`\`\`bash
+python -m unittest discover -s code/network_structural_analysis/tests -v
+python -m compileall -q code/network_structural_analysis
+\`\`\`
 
-```bash
-python -m network_structural_analysis.run_pipeline --stage inspect --data-dir data
-```
+## Exact research execution sequence
 
-### 2. Generate threshold diagnostics only
+Run these commands one at a time and inspect each validation report before proceeding. No stage automatically starts the next stage.
 
-```bash
-python -m network_structural_analysis.run_pipeline --stage threshold --data-dir data --out results_network_analysis
-```
+### 1. Preflight input files and node mapping
 
-Inspect the files in `results_network_analysis/threshold_review/` before choosing \(\tau\):
+\`\`\`bash
+python -m network_structural_analysis.run_pipeline --stage preflight --data-dir data --expected-nodes 4050
+\`\`\`
 
-- `threshold_diagnostics.csv` and `threshold_pooled_summary.csv`
-- Flow-coverage, density, mean-degree and degree-heterogeneity curves.
-- Directed reciprocity and giant weak-component curves.
-- `threshold_density_coverage_tradeoff.png`
+This reads and validates both ICIO files, checks that each has 4,050 unique labels, and aligns 2022 to the 2019 label order. It does not construct structural metrics or start dynamics.
 
-The diagnostics include edge retention, off-diagonal monetary-flow coverage, directed density, in/out/undirected-projection mean degrees, degree coefficients of variation, degree-distribution quantiles, reciprocity and giant weak-component fraction. The code **does not select a threshold automatically**. Select a defensible value by reviewing the trade-off and any elbow in the curves. It is a sparsification parameter, not an observed economic cutoff.
+### 2. Real-network structural analysis only
 
-### 3. Build and analyse the real 2019/2022 networks only
+\`\`\`bash
+python -m network_structural_analysis.run_pipeline --stage structural --scope real --data-dir data --out results/revised_structural_analysis --threshold 0.001 --expected-nodes 4050 --seed 20261030
+\`\`\`
 
-Replace `YOUR_REVIEWED_THRESHOLD` with the value you selected from step 2:
+This stage creates only \`real_2019\` and \`real_2022\` WD networks. It writes the sparse WD matrix, directed edge list, node mapping, node-level structural table, per-network metadata and real manifest. It does not generate synthetic networks or run SIS.
 
-```bash
-python -m network_structural_analysis.run_pipeline --stage real --data-dir data --out results_network_analysis --threshold YOUR_REVIEWED_THRESHOLD
-```
+Validate the real results:
 
-This stage creates the six empirical matrices (2019/2022 × UU/UD/WD), edge lists, node-level metrics, country/industry summaries, network-level summaries, comparison tables and figures. It also saves the exact empirical weight and buyer-total samples used to calibrate synthetic WD networks.
+\`\`\`bash
+python -m network_structural_analysis.run_pipeline --stage validate-structural --scope real --out results/revised_structural_analysis --expected-nodes 4050
+\`\`\`
 
-**This stage does not generate any synthetic graph.** Review the real outputs and the selected threshold before continuing.
+The validator checks both expected IDs, matrix checksums, dimensions, WD weight bounds, zero diagonal, node-level row counts, unique/stable IDs, complete node indices and finite metrics. Inspect \`results/revised_structural_analysis/diagnostics/real_structural_validation.json\`.
 
-### 4. Generate the synthetic networks after approving the real results
+### 3. Synthetic structural analysis only
 
-```bash
-python -m network_structural_analysis.run_pipeline --stage synthetic --out results_network_analysis --realizations 10 --seed 20261030
-```
+Run only after the real structural validation passed:
 
-The synthetic stage uses the empirical calibration files saved by step 3; it does not reload or reconstruct the real networks. The default is 10 independent realizations per configuration (90 skeletons and 270 paired matrices). The count is configurable: use `--realizations 5` for a faster exploratory run or `--realizations 20` for the original full design. A fresh synthetic run removes prior generated synthetic matrices/manifests/metrics first, so stale files from an earlier larger run cannot be mistaken for completed realizations. It saves node metrics and degree-frequency distributions for each representation of each realization.
+\`\`\`bash
+python -m network_structural_analysis.run_pipeline --stage structural --scope synthetic --out results/revised_structural_analysis --expected-nodes 4050 --seed 20261030
+\`\`\`
 
-The experiment parameters follow the plan:
+This generates exactly one realization for each ER/BA/WS configuration and persists only its WD matrix. It does not rerun real structural analysis or start SIS.
 
-- ER expected degree multipliers: **0.5×, 1.0×, 1.5×** the mean empirical UU degree; \(p=k_{target}/(N-1)\).
-- BA target degree multipliers: **0.5×, 1.0×, 1.5×**; \(m\) is the nearest valid integer to \(k_{target}/2\).
-- WS: fixed nearest even \(k\) to the empirical reference degree, with rewiring probabilities **0.01, 0.10, 0.50**.
-- Directed orientation is calibrated to pooled empirical UD reciprocity.
-- WD edge weights are sampled from empirical retained dependency shares. Buyer incoming totals are sampled conditionally on synthetic buyer in-degree; nearest-degree fallback is used only when the exact in-degree is absent.
+Validate the nine synthetic results:
 
-### 5. Validate the persisted matrices before the SIS run
+\`\`\`bash
+python -m network_structural_analysis.run_pipeline --stage validate-structural --scope synthetic --out results/revised_structural_analysis --expected-nodes 4050
+\`\`\`
 
-Do this only after the structural stages have finished and the empirical/synthetic manifests and matrices are present. This is a preflight; it **does not run SIS** and it does not write to the structural output folders.
+Inspect \`diagnostics/synthetic_structural_validation.json\`.
 
-For real networks only:
+### 4. Validate all 11 structural networks
 
-```bash
-python -m network_structural_analysis.run_pipeline --stage dynamics-validate --scope real --out results_network_analysis --rho 0.2
-```
+\`\`\`bash
+python -m network_structural_analysis.run_pipeline --stage validate-structural --scope all --out results/revised_structural_analysis --expected-nodes 4050
+\`\`\`
 
-For the final full experiment, after both empirical and synthetic networks are present:
+This writes \`diagnostics/structural_complete.json\` and \`manifests/all_11_network_manifest.csv\`. The all-network validator must report 2 real + 9 synthetic networks, exactly 3 each of ER/BA/WS, 4,050 nodes each, one realization per synthetic configuration, and WD-only matrix format.
 
-```bash
-python -m network_structural_analysis.run_pipeline --stage dynamics-validate --scope all --out results_network_analysis --rho 0.2
-```
+### 5. Dynamics preflight (no simulations)
 
-The full preflight checks all 546 matrices (six empirical and 540 synthetic), dimensions, finite/nonnegative weights, no diagonal links, binary UU/UD, WD weights in [0,1], symmetric UU matrices, and the paired support rules: WD must have the same directed support as UD, and UU must equal the undirected union of UD. It also verifies the six empirical year/representation combinations and the nine synthetic configurations with paired UU/UD/WD representations and common realization IDs/seeds. By default, the expected synthetic realization count is inferred from the manifest and must be consistent across configurations. Use `--expected-realizations N` when you want to assert an exact count.
+\`\`\`bash
+python -m network_structural_analysis.run_pipeline --stage dynamics-preflight --out results/revised_structural_analysis --census-out results/single_node_shock_census --rho 0.2
+\`\`\`
 
-Review:
+This stage is gated by the successful all-11 structural-completeness report. It verifies the same WD matrix checksums and node counts, calculates the spectral radius and \(\beta_c=\rho/\lambda_{\max}(B)\) separately for every network, and writes \`results/single_node_shock_census/diagnostics/dynamics_preflight.csv\`. A zero/non-finite spectral radius is an explicit error; no normalized-\(\eta\) run proceeds with an undefined threshold.
 
-- `results_network_analysis/dynamics/validation_all/dynamics_input_precheck.csv`: one row per matrix, including edge count, checksum, largest eigenvalue and \(\beta_c\).
-- `results_network_analysis/dynamics/validation_all/dynamics_input_validation.json`: the overall validation report and \(\beta_c\) ranges by representation.
+### 6. Exhaustive Stage 1 single-node shock census
 
-Use the actual \(\beta_c\) values to choose the absolute \(\beta\) values. Do not copy the illustrative beta values below without checking their scale. For the final comparison across all 546 matrices, choose one \(\rho\) and one absolute \(\beta\) per representation, then hold those three betas fixed across every network. In particular, WD's weighted dependency-share scale differs from binary UU/UD.
+\`\`\`bash
+python -m network_structural_analysis.run_pipeline --stage census --out results/revised_structural_analysis --census-out results/single_node_shock_census --rho 0.2 --batch-size 128 --max-steps 300 --affected-threshold 0.01 --extinction-tolerance 1e-8 --convergence-tolerance 1e-8 --consecutive-steps 5 --long-run-window 30
+\`\`\`
 
-### 6. Run the single SIS Model A
-
-For the complete final comparison, run all matrices together after the full preflight passes:
-
-```bash
-python -m network_structural_analysis.run_pipeline --stage dynamics --scope all --out results_network_analysis --rho 0.2 --beta-uu 0.1 --beta-ud 0.1 --beta-wd 0.1
-```
-
-The beta values shown here are **illustrative syntax only**. Replace them with the values you chose after examining the preflight table. Keep the same values when running the full scope.
-
-For an optional empirical-only trial before synthetic matrices exist:
-
-```bash
-python -m network_structural_analysis.run_pipeline --stage dynamics --scope real --out results_network_analysis --rho 0.2 --beta-uu 0.1 --beta-ud 0.1 --beta-wd 0.1
-```
-
-When the synthetic matrices exist, you can also preflight or run them separately using `--scope synthetic`. For a scientifically consistent comparison of the real and synthetic networks, however, prefer one `--scope all` run with common absolute beta values.
-
-The single implemented model is:
+For each network, each node is shocked independently once at disruption 1; all other nodes start at zero, and the source recovers normally. The active equation is:
 
 \[
-d_j(t+1)=\operatorname{clip}_{[0,1]}\left((1-\rho)d_j(t)
- +(1-d_j(t))\beta\sum_i B_{ij}d_i(t)\right),
-\qquad e(t)=B^T d(t).
+d_j(t+1)=\operatorname{clip}_{[0,1]}\left[(1-\rho)d_j(t)+(1-d_j(t))\beta\sum_i B_{ij}d_i(t)\right],
+\quad e(t)=B^\top d(t).
 \]
 
-Here \(B=A\) for UU and UD, and \(B=P\) for WD. The critical transmission is \(\beta_c=\rho/\lambda_{max}(B)\). The package runs one absolute-strength scenario and six normalized scenarios with \(\eta=\beta/\beta_c\) at \(\eta\in\{0.5,0.9,1.0,1.1,1.5,2.0\}\). It uses 20 real initial seed sets matched across 2019/2022 and all three representations, and five initial seed sets per synthetic skeleton reused across its paired UU/UD/WD matrices. The default initial infected fraction is 1% (41 nodes for 4,050 nodes).
+Each network uses its own \(\beta_c=\rho/\lambda_{\max}(B)\) and \(\beta=\eta\beta_c\), with \(\eta=0.9\) and \(1.1\). For 11 networks of 4,050 nodes this is 89,100 independent trajectories. The actual count is calculated from the validated manifests.
 
-Controls include `--max-steps`, `--tolerance`, `--real-seed-sets`, `--synthetic-seed-sets`, `--infection-fraction`, and `--seed`. \(\rho\) must be positive and at most one. Absolute beta values are constant within each representation across the matrices in a run; do not silently retune them by graph.
+The code uses sparse \(B^\top D\) multiplication over batches of independent source experiments. It does not keep all trajectory histories in memory. Every batch is written atomically, SHA-256 recorded in a checkpoint, and validated before being skipped on resume. A fully written batch whose checkpoint update was interrupted is recovered only after validating its source IDs and run condition. Full histories are not stored for every census node.
 
-The dynamics run writes only beneath `results_network_analysis/dynamics/{real,synthetic,all}/`. It does not overwrite empirical or synthetic structural matrices, node metrics, edge lists or structural summaries.
+The eight output metrics are:
 
-## Output structure
+1. Maximum prevalence and its earliest time step.
+2. Cumulative prevalence, using a documented trapezoidal integration rule over the common horizon.
+3. Time to peak (earliest tied maximum).
+4. Maximum affected nodes (\(d_j\geq0.01\), source included).
+5. Final affected nodes at the common final horizon.
+6. Long-run prevalence over the final 30 time points.
+7. Extinction status, requiring max node disruption below \(10^{-8}\) for 5 consecutive steps.
+8. Convergence time, requiring max absolute state change below \(10^{-8}\) for 5 consecutive steps; missing means not converged within the horizon.
 
-`results_network_analysis/` includes:
+Primary outputs include \`raw_metrics/single_node_census_metrics.csv.gz\`, per-network/eta metric summaries, separate rankings for cumulative prevalence, maximum prevalence, maximum affected nodes and long-run prevalence, batch checkpoints and diagnostics.
 
-- `threshold_review/`: threshold diagnostics and figures.
-- `metadata/`: run metadata, input SHA-256 checksums, node index, workbook preview, conservative source-provenance audit and saved synthetic calibration samples.
-- `empirical/{2019,2022}/{UU,UD,WD}/`: sparse `adjacency.npz`, edge list, node metrics, country/industry summaries and distributions.
-- `empirical_network_manifest.csv`: exact paths to all six empirical matrices.
-- `comparisons/` and `figures/`: year-to-year comparisons and structural plots.
-- `synthetic/matrices/{ER,BA,WS}/config_*/realization_*/{UU,UD,WD}.npz`: all `27 × realizations` synthetic matrices (270 at the recommended default of 10).
-- `synthetic/node_metrics/` and `synthetic/degree_distributions/`: per-matrix node metrics plus separate in-degree, out-degree and undirected-projection degree distributions.
-- `synthetic/synthetic_network_manifest.csv`: matrix paths and paired realization seeds.
-- `dynamics/validation_{real,synthetic,all}/`: preflight matrix validation, checksums and per-matrix spectral thresholds; no SIS simulation is run by this stage.
-- `dynamics/{real,synthetic,all}/`: seed-level and network-level Model A summaries, per-network trajectories, seed-set/graph-level confidence intervals, aggregated trajectory tables, and plots under `trajectory_summaries/plots/`.
+Validate completeness before comparisons:
 
-Do not commit generated results or duplicate source CSV files unless intentionally required.
+\`\`\`bash
+python -m network_structural_analysis.run_pipeline --stage census-validate --out results/revised_structural_analysis --census-out results/single_node_shock_census
+\`\`\`
 
-## Source provenance note
+The census is not complete unless all expected source-node/eta combinations are present exactly once.
 
-The official [OECD ICIO dataset page](https://www.oecd.org/en/data/datasets/inter-country-input-output-tables.html) lists a 2025 regular ICIO release covering 1995–2022. The pipeline inspects the companion `ReadMe_ICIO_small.xlsx`, records the local CSV checksums and label universe, and writes `metadata/source_provenance_audit.json`. A companion workbook is not conclusive, file-specific proof of which release each CSV came from. Preserve the original OECD archive/download reference or source manifest for the 2019 and 2022 files.
+### 7. Structural–dynamic comparison and candidate selection
 
-## Structural measures
+\`\`\`bash
+python -m network_structural_analysis.run_pipeline --stage compare-select --out results/revised_structural_analysis --census-out results/single_node_shock_census --high-percentile 0.90 --low-percentile 0.10
+\`\`\`
 
-Network-level outputs include nodes, edges, density, degree statistics, in/out degree heterogeneity, weak and strong components, clustering, sampled shortest-path distance, reciprocity, weighted strengths and spectral radius. Node-level outputs include in/out degree and strength, PageRank, betweenness, k-core and clustering. Paths and betweenness are source-sampled for large matrices; sampling settings are recorded.
+This joins node tables only on \`network_id\` and stable \`node_id\`, calculates Spearman correlations between all available structural metrics and the four impact measures, and compares 2019/2022 rank stability using matched country-industry labels. Correlations are descriptive and do not establish causality.
 
-## SIS metrics and uncertainty
+Candidate categories are:
+- A: high structural percentile on one or more available structural measures.
+- B: high cumulative-prevalence percentile at \(\eta=1.1\).
+- C1: high structural composite and low dynamical percentile.
+- C2: low structural composite and high dynamical percentile.
 
-Model outputs include prevalence trajectories, mean exposure, peak prevalence, time-to-peak, long-run prevalence, cumulative prevalence, extinction time, convergence, \(\lambda_{max}\) and \(\beta_c\). Seed-set variation is retained within each network. Synthetic graph-to-graph summaries and 95% confidence intervals are computed across independent realizations, separately from within-network seed-set uncertainty. Graph-level confidence intervals are undefined for a single realization and are left blank rather than set to zero width.
+Percentiles are calculated within each network. The structural composite is the mean of available structural metric percentiles. Candidate reasons are retained together instead of duplicating nodes.
 
-## Tests
+### 8. Stage 2 targeted individual-node SIS
 
-```bash
-PYTHONPATH=code python -m unittest discover -s code/network_structural_analysis/tests -v
-python -m compileall -q code/network_structural_analysis
-```
+\`\`\`bash
+python -m network_structural_analysis.run_pipeline --stage targeted --out results/revised_structural_analysis --census-out results/single_node_shock_census --targeted-out results/targeted_individual_node_sis --rho 0.2 --batch-size 128 --max-steps 300
+\`\`\`
 
-See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the detailed definitions and assumptions.
+Each candidate node is tested individually, with all other nodes starting at zero and the source recovering normally. Stage 2 uses the full approved \(\eta\) grid \(\{0.5,0.9,1.0,1.1,1.5,2.0\}\). It does not rerun the exhaustive census and does not create simultaneous targeted-node shocks or top-K group shocks. Results are compared with Stage 1 wherever the same \(\eta\) was tested.
+
+Validate targeted results:
+
+\`\`\`bash
+python -m network_structural_analysis.run_pipeline --stage targeted-validate --targeted-out results/targeted_individual_node_sis
+\`\`\`
+
+## New output layout
+
+\`\`\`text
+results/
+  revised_structural_analysis/
+    real_networks/real_2019/
+    real_networks/real_2022/
+    synthetic_networks/syn_ER_1/ ... syn_WS_3/
+    summaries/
+    diagnostics/
+    manifests/
+    metadata/
+  single_node_shock_census/
+    config/
+    raw_metrics/
+    network_summaries/
+    rankings/
+    structural_dynamic_comparisons/
+    targeted_candidates/
+    diagnostics/
+  targeted_individual_node_sis/
+    raw_metrics/
+    comparisons/
+    diagnostics/
+\`\`\`
+
+The structural manifest includes one row per selected network, the exact WD matrix path and checksum, the node mapping and metric table paths, node/edge counts and metadata. Run manifests record the active Git branch/commit when locally available, run timestamps, library versions and scientific parameter settings.
+
+## Legacy preservation
+
+Historical outputs and old multi-representation helper modules are retained for reproducibility and compatibility. They are not used by the active CLI. The active configuration exposes \`REPRESENTATIONS=("WD",)\`; legacy helper code imports the explicitly named \`LEGACY_REPRESENTATIONS\`. Do not use the old \`results_network_analysis/dynamics\` outputs as revised census results.
+
+## Scientific limitations
+
+- A country-industry node is an economic production activity, not a firm.
+- A dependency share measures a buyer's intermediate-purchase share associated with a supplier; it is not an outage probability.
+- The SIS process is an abstract comparative propagation model, not a calibrated production-loss model.
+- One realization per synthetic configuration does not characterize variability across the random graph-generating process. Do not calculate or claim between-realization confidence intervals.
+- Synthetic network node IDs are configuration-specific and cannot be interpreted as the same economic activity across configurations.
+- Spearman associations and node rankings do not establish causal economic effects.
+- Historical differences between 2019 and 2022 should not be attributed to a specific event without independent evidence.

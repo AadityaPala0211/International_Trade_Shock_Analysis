@@ -19,7 +19,7 @@ from scipy import sparse
 from scipy.sparse import load_npz
 from scipy.stats import t as student_t
 
-from .config import ETA_LEVELS, REPRESENTATIONS
+from .config import ETA_LEVELS, LEGACY_REPRESENTATIONS as REPRESENTATIONS
 from .metrics import _safe_spectral_radius
 
 

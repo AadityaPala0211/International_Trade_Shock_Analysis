@@ -9,7 +9,7 @@ import pandas as pd
 from scipy import sparse
 from scipy.sparse import load_npz
 
-from .config import FAMILIES, REPRESENTATIONS, YEARS
+from .config import FAMILIES, LEGACY_REPRESENTATIONS as REPRESENTATIONS, YEARS
 
 
 def _load_manifest(path, base_dir, expected_type, required_columns, errors):
