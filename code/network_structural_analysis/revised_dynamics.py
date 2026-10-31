@@ -410,6 +410,15 @@ def _write_rankings(frame, folder: Path, key_columns):
 
 
 
+def _safe_hist(axis, values, max_bins=40):
+    values = pd.to_numeric(pd.Series(values), errors="coerce").dropna().to_numpy(dtype=float)
+    if not len(values):
+        axis.text(0.5, 0.5, "No finite observations", ha="center", va="center", transform=axis.transAxes)
+        return
+    bins = min(int(max_bins), max(1, int(np.unique(values).size)))
+    axis.hist(values, bins=bins)
+
+
 def _plot_census_distributions(frame: pd.DataFrame, census_out: Path):
     """Create per-network/eta distributions for the four main disruption metrics."""
     import matplotlib
@@ -426,7 +435,7 @@ def _plot_census_distributions(frame: pd.DataFrame, census_out: Path):
     for (network_id, eta), group in frame.groupby(["network_id", "eta"], sort=True):
         fig, axes = plt.subplots(2, 2, figsize=(11, 8))
         for axis, (column, label) in zip(axes.ravel(), metrics):
-            axis.hist(pd.to_numeric(group[column], errors="coerce").dropna(), bins=40)
+            _safe_hist(axis, group[column], max_bins=40)
             axis.set_title(label)
             axis.set_xlabel(label)
             axis.set_ylabel("Source-node experiments")

@@ -154,11 +154,15 @@ def _plot_structural_node_strengths(node_frame: pd.DataFrame, out: Path, network
     target.mkdir(parents=True, exist_ok=True)
     path = target / f"{network_id}_weighted_strengths.png"
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
-    axes[0].hist(node_frame["weighted_out_strength"].to_numpy(dtype=float), bins=50)
+    out_values = node_frame["weighted_out_strength"].to_numpy(dtype=float)
+    out_values = out_values[np.isfinite(out_values)]
+    axes[0].hist(out_values, bins=min(50, max(1, np.unique(out_values).size)))
     axes[0].set_title("Weighted out-strength")
     axes[0].set_xlabel("Total outgoing dependency share")
     axes[0].set_ylabel("Country-industry activities")
-    axes[1].hist(node_frame["weighted_in_strength"].to_numpy(dtype=float), bins=50)
+    in_values = node_frame["weighted_in_strength"].to_numpy(dtype=float)
+    in_values = in_values[np.isfinite(in_values)]
+    axes[1].hist(in_values, bins=min(50, max(1, np.unique(in_values).size)))
     axes[1].set_title("Weighted in-strength")
     axes[1].set_xlabel("Total incoming dependency share")
     axes[1].set_ylabel("Country-industry activities")
