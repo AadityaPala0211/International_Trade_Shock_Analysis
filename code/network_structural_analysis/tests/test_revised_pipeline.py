@@ -15,6 +15,7 @@ from network_structural_analysis.config import (
 )
 from network_structural_analysis.revised_structural import (
     MATRIX_FORMAT, _wd_from_flows, atomic_json, sha256_file,
+    run_synthetic_structural, validate_structural_group,
 )
 from network_structural_analysis.revised_dynamics import (
     simulate_one_step, simulate_single_node_batch, spectral_threshold,
@@ -45,6 +46,43 @@ class TestRevisedNetworkScope(unittest.TestCase):
         self.assertEqual(B.diagonal().sum(), 0.0)
         self.assertTrue(np.all(B.data > 0))
         self.assertTrue(np.all(B.data <= 1.0))
+
+
+
+    def test_small_synthetic_structural_pilot_generates_nine_wd_networks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "diagnostics").mkdir(parents=True, exist_ok=True)
+            (root / "metadata").mkdir(parents=True, exist_ok=True)
+            atomic_json(root / "diagnostics" / "real_structural_validation.json", {
+                "status": "valid", "group": "real",
+            })
+            atomic_json(root / "metadata" / "empirical_wd_calibration.json", {
+                "node_count": 30,
+                "threshold": 0.001,
+                "reference_mean_degree": 4.0,
+                "reference_reciprocity": 0.2,
+            })
+            np.savez_compressed(
+                root / "metadata" / "empirical_wd_calibration_samples.npz",
+                empirical_share_samples=np.array([0.1, 0.2, 0.3]),
+                empirical_dependency_total_samples=np.full(30, 0.5),
+                empirical_indegree_samples=np.full(30, 2, dtype=int),
+            )
+            records = run_synthetic_structural(
+                root, seed=42, path_sample_sources=5, betweenness_k=5,
+            )
+            self.assertEqual(len(records), 9)
+            self.assertEqual(
+                {record["network_id"] for record in records},
+                {f"syn_{family}_{level}" for family in ("ER", "BA", "WS") for level in (1, 2, 3)},
+            )
+            self.assertTrue(all(record["matrix_format"] == MATRIX_FORMAT for record in records))
+            self.assertTrue(all(record["realization_id"] == 1 for record in records))
+            validation = validate_structural_group(root, "synthetic", expected_nodes=30)
+            self.assertEqual(validation["status"], "valid")
+            self.assertEqual(validation["observed_network_count"], 9)
+            self.assertTrue((root / "manifests" / "synthetic_network_manifest.csv").is_file())
 
 
 class TestRevisedSISModel(unittest.TestCase):
