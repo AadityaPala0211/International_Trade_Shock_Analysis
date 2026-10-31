@@ -571,11 +571,24 @@ def _validate_one_record(out: Path, record: dict, expected_nodes: int):
         errors.append("node IDs differ between structural metrics and node index")
     if not np.array_equal(np.sort(index["node_index"].to_numpy(dtype=int)), np.arange(expected_nodes)):
         errors.append("node index must be a complete 0..N-1 mapping")
-    numeric = [c for c in metrics.select_dtypes(include=[np.number]).columns]
+    optional_metadata = {"year", "realization_id"}
+    numeric = [
+        c for c in metrics.select_dtypes(include=[np.number]).columns
+        if c not in optional_metadata
+    ]
     if numeric and not np.isfinite(metrics[numeric].to_numpy(dtype=float)).all():
         errors.append("non-finite numerical structural metric")
     if not metrics["network_id"].astype(str).eq(str(record["network_id"])).all():
         errors.append("network_id mismatch in node metrics")
+    if str(record["network_family"]) == "OECD_ICIO":
+        expected_year = int(record["year"])
+        if not metrics["year"].notna().all() or not metrics["year"].astype(int).eq(expected_year).all():
+            errors.append("real-network year metadata mismatch in node metrics")
+    else:
+        if metrics["year"].notna().any():
+            errors.append("synthetic network must not have an OECD year")
+        if not metrics["realization_id"].astype(int).eq(1).all():
+            errors.append("synthetic node metrics must identify realization 1")
     return errors, metrics
 
 
