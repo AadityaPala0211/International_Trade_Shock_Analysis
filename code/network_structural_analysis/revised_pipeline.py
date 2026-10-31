@@ -52,7 +52,10 @@ def _write_dynamics_preflight(structural_out: Path, census_out: Path, rho: float
     target = census_out / "diagnostics"
     target.mkdir(parents=True, exist_ok=True)
     diagnostics.to_csv(target / "dynamics_preflight.csv", index=False)
+    clean_threshold_rows = diagnostics.astype(object).where(pd.notna(diagnostics), None).to_dict(orient="records")
     report = {
+        "run_id": "dynamics_preflight_" + pd.Timestamp.now(tz="UTC").strftime("%Y%m%dT%H%M%SZ"),
+        "created_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
         "status": "valid",
         "network_count": len(records),
         "network_ids": [r["network_id"] for r in records],
@@ -60,7 +63,7 @@ def _write_dynamics_preflight(structural_out: Path, census_out: Path, rho: float
         "rho": float(rho),
         "eta_stage1": list(ACTIVE_ETA_STAGE1),
         "eta_stage2": list(ACTIVE_ETA_STAGE2),
-        "spectral_thresholds": diagnostics.to_dict(orient="records"),
+        "spectral_thresholds": clean_threshold_rows,
         "dynamics_started": False,
         "git": git_provenance(),
     }
