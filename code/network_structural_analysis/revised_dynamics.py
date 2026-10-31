@@ -416,7 +416,9 @@ def _safe_hist(axis, values, max_bins=40):
         axis.text(0.5, 0.5, "No finite observations", ha="center", va="center", transform=axis.transAxes)
         return
     bins = min(int(max_bins), max(1, int(np.unique(values).size)))
-    axis.hist(values, bins=bins)
+    value_min, value_max = float(values.min()), float(values.max())
+    padding = max((value_max - value_min) * 0.05, abs(value_min) * 1e-6, 1e-12)
+    axis.hist(values, bins=bins, range=(value_min - padding, value_max + padding))
 
 
 def _plot_census_distributions(frame: pd.DataFrame, census_out: Path):
