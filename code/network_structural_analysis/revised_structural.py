@@ -601,11 +601,14 @@ def validate_structural_group(out_dir: str | Path, group: str, expected_nodes: i
             errors.extend([f"{record['network_id']}: {message}" for message in item_errors])
         if metrics is not None:
             metrics_by_id[str(record["network_id"])] = metrics
+        summary_year = record.get("year")
+        if pd.isna(summary_year):
+            summary_year = None
         summaries.append({
             "network_id": record["network_id"],
             "network_family": record["network_family"],
             "network_configuration": record["network_configuration"],
-            "year": record.get("year"),
+            "year": summary_year,
             "node_count": record["node_count"],
             "edge_count": record["edge_count"],
             "validation_status": "failed" if item_errors else "valid",
