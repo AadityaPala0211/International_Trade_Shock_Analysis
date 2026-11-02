@@ -14,6 +14,7 @@ SUMMARY = (ROOT / "results_network_analysis" / "dynamics" / "all" /
            "trajectory_summaries" / "real_trajectory_summary.csv.gz")
 OUT = Path(__file__).resolve().parent / "figures"
 ETA = 1.5  # Available scenarios: 0.5, 0.9, 1.0, 1.1, 1.5, 2.0
+Y_SCALE = "log"  # Use "linear" to switch back to a 0..1 vertical axis
 
 
 def main():
@@ -41,8 +42,12 @@ def main():
             ax.fill_between(x, low, high, color=line.get_color(), alpha=0.16)
         ax.set_title(representation)
         ax.set_xlabel("Discrete model time step (t)")
-        ax.set_ylim(0, 1)
-        ax.grid(alpha=0.22)
+        if Y_SCALE == "log":
+            ax.set_yscale("log")
+            ax.set_ylim(bottom=1e-10, top=1)
+        else:
+            ax.set_ylim(0, 1)
+        ax.grid(alpha=0.22, which="both")
     axes[0].set_ylabel("Mean prevalence")
     axes[-1].legend(title="ICIO year")
     fig.suptitle(f"Real-network SIS trajectories at fixed eta = {ETA:g}", y=1.02)
