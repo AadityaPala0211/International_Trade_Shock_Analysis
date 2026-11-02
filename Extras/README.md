@@ -38,7 +38,7 @@ modified.
 | Script | What it plots | Saved input |
 |---|---|---|
 | `plot_structural_points.py` | Four point-only panels: clustering, undirected-projection mean degree, largest-component fraction, and density by UU/UD/WD | `empirical_network_summaries.csv` |
-| `plot_fixed_eta_trajectory.py` | 2019/2022 prevalence trajectories over discrete model time for one fixed eta, in UU/UD/WD panels, with seed-set confidence bands | `dynamics/all/trajectory_summaries/real_trajectory_summary.csv.gz` |
+| `plot_fixed_eta_trajectory.py` | One graph with representative eta cases below (0.9), at (1.0), and above (1.1) the threshold; solid/dashed lines compare 2019/2022, with a linear main axis and a zoom inset for the lower trajectories | `dynamics/all/trajectory_summaries/real_trajectory_summary.csv.gz` |
 | `plot_sis_response_vs_eta.py` | Final prevalence versus eta, with eta=1 threshold and seed-set error bars | `dynamics/all/real_dynamics_seedset_summary.csv` |
 | `plot_rank_stability.py` | Spearman rank persistence of node metrics from 2019 to 2022 | `comparisons/node_metric_year_comparison.csv` |
 | `plot_synthetic_benchmarks.py` | Synthetic configuration design space: mean degree versus clustering | `synthetic/synthetic_configuration_summaries.csv` |
@@ -64,3 +64,5 @@ The current saved synthetic experiment has one graph realization per
 configuration. The synthetic design-space plot therefore shows configuration
 points without ensemble confidence intervals; the script will show saved
 intervals automatically if a future experiment contains multiple realizations.
+
+The fixed-ηη trajectory plot now shows three threshold regimes on one graph: `eta=0.9`, `eta=1.0`, and `eta=1.1`. It uses a linear main y-axis for an intuitive prevalence comparison and an inset to magnify the below-threshold and critical trajectories. Change `REPRESENTATION` in the script to `UU`, `UD`, or `WD`; the six series are still read from the stored trajectory summary only.
